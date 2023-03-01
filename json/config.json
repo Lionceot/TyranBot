@@ -8,5 +8,7 @@
   "bet_limit": 500,
   "global_boost": 1,
   "potato-leaderboard-channel": 1001231256052322315,
-  "potato-leaderboard-role": 0
+  "potato-leaderboard-role": 0,
+  "moderation_logs": 1080116126891122748,
+  "mute_role": null
 }

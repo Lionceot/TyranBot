@@ -12,9 +12,10 @@ from datetime import datetime
 import discord
 from discord import Embed, Color, Member, Intents, Activity, ActivityType, ApplicationContext, DiscordException, Guild
 from discord.ext import commands
+from discord.errors import Forbidden
 from discord.ext.commands import errors, Context
 
-from custom_errors import NotEnoughMoney, UserIsBot, UnknownObject, MaxAmountReached, IncorrectBetValue
+from custom_errors import NotEnoughMoney, UserIsBot, UnknownObject, MaxAmountReached, IncorrectBetValue, InvalidTimeString
 
 
 load_dotenv()
@@ -56,14 +57,24 @@ def time_now():
     return datetime.now(tz=timezone("Europe/Paris"))
 
 
-def get_parameter(arg: str):
-    with open("json/config.json", 'r', encoding='utf-8') as config_file:
-        config_values = json.load(config_file)
+def get_parameter(param):
+    with open("json/config.json", "r", encoding="utf-8") as config_file:
+        config = json.load(config_file)
 
-    try:
-        return config_values[arg]
-    except KeyError:
-        return "KeyError"
+    if isinstance(param, str):
+        try:
+            return config[param]
+        except KeyError:
+            return "KeyError"
+
+    else:
+        items = []
+        for item in param:
+            if item in config:
+                items.append(config[item])
+            else:
+                items.append(None)
+        return items
 
 
 def get_text(reference: str, lang: str):
@@ -91,9 +102,44 @@ def sort_dict_by_value(d, reverse=False):
     return dict(sorted(d.items(), key=lambda x: x[1], reverse=reverse))
 
 
+def string_to_time(raw_time: str):
+    time_dict = {
+        "s": 1,  # second
+        "h": 3600,  # hour
+        "d": 3600 * 24,  # day
+        "w": 3600 * 24 * 7,  # week
+        "m": 3600 * 24 * 7 * 28,  # month
+    }
+    times = raw_time.split(' ')
+    total = 0
+
+    for time in times:
+        if time == '':
+            continue
+        indicator = time[-1]
+
+        if indicator not in time_dict:
+            raise InvalidTimeString(reason="Invalid indicator", raw_input=raw_time)
+
+        try:
+            number = eval(time[:-1])
+
+        except SyntaxError:
+            raise InvalidTimeString(reason="Invalid time", raw_input=raw_time)
+
+        if number < 0:
+            raise InvalidTimeString(reason="Negative time isn't allowed", raw_input=raw_time)
+
+        total += number * time_dict[indicator]
+
+    return total
+
+
+
+
 class MyBot(commands.Bot):
     def __init__(self):
-        intents = Intents.default()
+        intents = Intents.all()
 
         with open("json/config.json", "r", encoding="utf-8") as config_file:
             config = json.load(config_file)
@@ -116,14 +162,14 @@ class MyBot(commands.Bot):
 
         self.ignored_errors = [errors.CommandNotFound, errors.NoPrivateMessage, TimeoutError, asyncio.TimeoutError]
 
-        self.log_file_name = time_now().strftime('%d-%m-%Y_%H.%M.%S')
+        self.log_file_name = time_now().strftime('%Y-%m-%d_%H.%M.%S')
 
         logging.basicConfig(filename=f"logs/{self.log_file_name}.log", level=20)
         logging.getLogger("discord").setLevel(logging.INFO)
         logging.getLogger("discord.http").setLevel(logging.WARNING)
 
         self.logger = logging.getLogger(__name__)
-        self.logger.handlers = [LogtailHandler(source_token=getenv("LOGTAIL_TOKEN"))]
+        # self.logger.handlers = [LogtailHandler(source_token=getenv("LOGTAIL_TOKEN"))]
 
         for filename in listdir('./cogs'):
             if filename.endswith('.py'):
@@ -230,8 +276,17 @@ class MyBot(commands.Bot):
             await ctx.respond(embed=emb, ephemeral=True)
 
         elif isinstance(exception, errors.CommandOnCooldown):
-            # todo: add time formatting for cooldown value
+            # "lang: add time formatting for cooldown value
             emb = Embed(color=Color.red(), description=get_text("command.on_cooldown", user_lang))
+            await ctx.respond(embed=emb, ephemeral=True)
+
+        elif isinstance(exception, InvalidTimeString):
+            # "lang: insert reason and raw input
+            emb = Embed(color=Color.red(), description=get_text("command.invalid_string", user_lang))
+            await ctx.respond(embed=emb, ephemeral=True)
+
+        elif isinstance(exception, Forbidden):
+            emb = Embed(color=Color.red(), description=get_text("command.missing_permission", user_lang))
             await ctx.respond(embed=emb, ephemeral=True)
 
         else:
