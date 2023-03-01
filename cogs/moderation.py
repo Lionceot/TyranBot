@@ -47,7 +47,7 @@ class ModerationCog(commands.Cog):
     @option(name="user", description="The user you want to timeout", type=Member)
     @option(name="duration", description="The time for which the user will stay timeout")
     @option(name="reason", description="The reason why you want to timeout that user")
-    @commands.has_permissions(kick_members=True)
+    @commands.has_permissions(moderate_members=True)
     async def timeout(self, ctx: ApplicationContext, user: Member, duration: str, reason: str):
 
         timeout_time = string_to_time(duration)
