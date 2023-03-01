@@ -64,7 +64,7 @@ class ModerationCog(commands.Cog):
         log_channel_id, bot_version = get_parameter(["moderation_logs", "version"])
         log_channel = self.bot.get_channel(log_channel_id)
 
-        log_emb = Embed(color=Color.teal(), description=f"{author.mention} has timeout {user.mention} for '{reason}'")
+        log_emb = Embed(color=Color.teal(), description=f"{author.mention} has timeout {user.mention} for `{duration}` because '{reason}'")
         log_emb.add_field(name="Details", value=f"• Author id : {author.id} \n• User id : {user.id}")
         log_emb.set_author(name="Moderation log - Timeout")
         log_emb.set_footer(text=f"Moderation     TyranBot • {bot_version}")
@@ -88,9 +88,44 @@ class ModerationCog(commands.Cog):
         await ctx.respond(f"{user.mention} has been kicked !", ephemeral=True)
         self.bot.log_action(txt=f"{author} ({author.id}) has banned {user} ({user.id}) from {ctx.guild_id}")
 
-        log_emb = Embed(color=Color.teal(), description=f"{author.mention} has kicked {user.mention} for '{reason}'")
+        log_emb = Embed(color=Color.teal(), description=f"{author.mention} has kicked {user.mention} because '{reason}'")
         log_emb.add_field(name="Details", value=f"• Author id : {author.id} \n• User id : {user.id}")
         log_emb.set_author(name="Moderation log - Kick")
+        log_emb.set_footer(text=f"Moderation   -   TyranBot • {bot_version}")
+
+        await log_channel.send(embed=log_emb)
+
+    @commands.slash_command(name="mute")
+    @option(name="user", description="The user you want to mute", type=Member)
+    @option(name="reason", description="The reason why you want to mute that user")
+    @commands.has_permissions(moderate_members=True)
+    async def mute(self, ctx: ApplicationContext, user: Member, reason: str):
+        log_channel_id, bot_version, mute_role_id = get_parameter(["moderation_logs", "version", "mute_role"])
+
+        guild = ctx.guild
+        author = ctx.author
+        log_channel = self.bot.get_channel(log_channel_id)
+
+        # Create a new mute role if none if configured
+        if mute_role_id is None:
+            default_perms = guild.default_role.permissions
+            default_perms.send_messages = False
+            mute_role = await guild.create_role(name="muted", reason="No mute role configured", permissions=default_perms)
+            self.bot.log_action(txt=f"New mute role ({mute_role.id}) in configuration for guild '{guild.id}'")
+
+        else:
+            mute_role = guild.get_role(mute_role_id)
+
+        # todo: add to user record
+
+        await user.add_roles(mute_role)
+
+        await ctx.respond(f"{user.mention} has been muted !", ephemeral=True)
+        self.bot.log_action(txt=f"{author} ({author.id}) has muted {user} ({user.id}) from {ctx.guild_id}")
+
+        log_emb = Embed(color=Color.teal(), description=f"{author.mention} has muted {user.mention} because '{reason}'")
+        log_emb.add_field(name="Details", value=f"• Author id : {author.id} \n• User id : {user.id}")
+        log_emb.set_author(name="Moderation log - Mute")
         log_emb.set_footer(text=f"Moderation   -   TyranBot • {bot_version}")
 
         await log_channel.send(embed=log_emb)
@@ -113,7 +148,7 @@ class ModerationCog(commands.Cog):
         self.bot.log_action(txt=f"{author} ({author.id}) has banned {user} ({user.id}) from {ctx.guild_id}")
 
         log_emb = Embed(color=Color.teal(),
-                        description=f"{author.mention} has banned {user.mention} for '{reason}'")
+                        description=f"{author.mention} has banned {user.mention} because '{reason}'")
         log_emb.add_field(name="Details", value=f"• Author id : {author.id} \n• User id : {user.id}")
         log_emb.set_author(name="Moderation log - Ban")
         log_emb.set_footer(text=f"Moderation   -   TyranBot • {bot_version}")
