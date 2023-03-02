@@ -11,7 +11,7 @@ from datetime import datetime
 
 import discord
 from discord import Embed, Color, Member, Intents, Activity, ActivityType, ApplicationContext, DiscordException, Guild
-from discord.ext import commands
+from discord.ext import commands, tasks
 from discord.errors import Forbidden
 from discord.ext.commands import errors, Context
 
@@ -191,6 +191,8 @@ class MyBot(commands.Bot):
         start_msg = f"[BOT] Bot connected as {self.user}"
         self.log_action(txt=start_msg)
 
+        await event_loop.start()
+
         # await self.change_presence(activity=discord.Game(name="distribuer les cartes"), status=Status.dnd)
 
         # print("-----------------------")
@@ -305,6 +307,37 @@ async def ping(ctx: ApplicationContext):
 
     if latency > limit:
         bot.log_action(txt=f"Bot ping is at {latency} ms", level=30)
+
+
+@tasks.loop(seconds=2)
+async def event_loop(self):
+    now = round(time_now().timestamp())
+
+    with open("events.json", "r", encoding="utf-8") as event_file:
+        events = json.load(event_file)
+
+    for timestamp in events:
+        if timestamp <= now:
+            for item in events[timestamp]:
+                guild = self.bot.get_guild(item['guild'])
+                user = guild.get_member(item['user'])
+
+                if item['type'] == 'tempmute':
+                    mute_role = guild.get_role(get_parameter('mute_role'))
+                    await user.remove_roles(mute_role)
+
+                elif item['type'] == 'tempban':
+                    await user.unban(reason="End of sentence")
+
+
+@event_loop.before_loop
+async def before_event_loop():
+    bot.log_action(txt="[LOOP] Event loop has started.")
+
+
+@event_loop.after_loop
+async def after_event_loop():
+    bot.log_action(txt="[LOOP] Event loop has stopped.")
 
 
 @bot.slash_command(name="reload", description="Redémarre une cog", brief="Reload a cog", hidden=True, guild_ids=[733722460771581982])
