@@ -27,7 +27,7 @@ class ModerationCog(commands.Cog):
         self.bot.log_action(txt=log_msg)
 
     """
-    warn 
+    - warn 
     - timeout
     - tempmute
     - mute
@@ -42,6 +42,52 @@ class ModerationCog(commands.Cog):
     - unlock
     - lockdown
     """
+
+    @commands.slash_command(name="warn")
+    @option(name="user", description="The user you want to timeout", type=User)
+    @option(name="reason", description="The reason why you want to timeout that user")
+    async def warn(self, ctx: ApplicationContext, user: User, reason: str):
+        await ctx.defer()
+
+        author = ctx.author
+
+        await ctx.respond(f"{user.mention} has been warned !", ephemeral=True)
+        self.bot.log_action(txt=f"{author} ({author.id}) has warned {user} ({user.id}) from {ctx.guild_id}")
+
+        # Add to user record
+        with open("json/moderation.json", "r", encoding="utf-8") as mod_file:
+            mod_logs = json.load(mod_file)
+
+        new_log = {
+            "type": "warn",
+            "duration": -1,
+            "reason": reason,
+            "author": author.id
+        }
+
+        if str(user.id) in mod_logs:
+            mod_logs[str(user.id)].append(new_log)
+
+        else:
+            mod_logs[str(user.id)] = [new_log]
+
+        with open("json/moderation.json", "w", encoding="utf-8") as mod_file:
+            json.dump(mod_logs, mod_file, indent=2)
+
+        log_channel_id, bot_version = get_parameter(["moderation_logs", "version"])
+        log_channel = self.bot.get_channel(log_channel_id)
+
+        log_emb = Embed(color=Color.teal(),
+                        description=f"{author.mention} has warned {user.mention} because '{reason}'")
+        log_emb.add_field(name="Details", value=f"• Author id : {author.id} \n• User id : {user.id}")
+        log_emb.set_author(name="Moderation log - Warn")
+        log_emb.set_footer(text=f"Moderation     TyranBot • {bot_version}")
+
+        await log_channel.send(embed=log_emb)
+
+        warn_emb = Embed(color=Color.light_grey(), title=f"{ctx.guild.name} - Warn",
+                         description=f"You have been warned on {ctx.guild.name} for {reason}")
+        await user.send(embed=warn_emb)
 
     @commands.slash_command(name="timeout")
     @option(name="user", description="The user you want to timeout", type=Member)
