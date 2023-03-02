@@ -1,1 +1,25 @@
-{}
+{
+  "357202046581080067": [
+    {
+      "type": "mute",
+      "duration": -1,
+      "reason": "test",
+      "author": 444504367152889877,
+      "date": 0
+    },
+    {
+      "type": "mute",
+      "duration": -1,
+      "reason": "test",
+      "author": 444504367152889877,
+      "date": 0
+    },
+    {
+      "type": "tempmute",
+      "duration": 150,
+      "reason": "test",
+      "author": 444504367152889877,
+      "date": 0
+    }
+  ]
+}

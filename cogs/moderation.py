@@ -62,7 +62,8 @@ class ModerationCog(commands.Cog):
             "type": "warn",
             "duration": -1,
             "reason": reason,
-            "author": author.id
+            "author": author.id,
+            "date": round(time_now().timestamp())
         }
 
         if str(user.id) in mod_logs:
@@ -114,7 +115,8 @@ class ModerationCog(commands.Cog):
             "type": "timeout",
             "duration": timeout_time,
             "reason": reason,
-            "author": author.id
+            "author": author.id,
+            "date": round(time_now().timestamp())
         }
 
         if str(user.id) in mod_logs:
@@ -180,7 +182,8 @@ class ModerationCog(commands.Cog):
                 "type": "tempmute",
                 "duration": mute_time,
                 "reason": reason,
-                "author": author.id
+                "author": author.id,
+                "date": round(time_now().timestamp())
             }
 
         if str(user.id) in mod_logs:
@@ -264,7 +267,8 @@ class ModerationCog(commands.Cog):
             "type": "mute",
             "duration": -1,
             "reason": reason,
-            "author": author.id
+            "author": author.id,
+            "date": round(time_now().timestamp())
         }
 
         if str(user.id) in mod_logs:
@@ -307,7 +311,8 @@ class ModerationCog(commands.Cog):
             "type": "kick",
             "duration": -1,
             "reason": reason,
-            "author": author.id
+            "author": author.id,
+            "date": round(time_now().timestamp())
         }
 
         if str(user.id) in mod_logs:
@@ -353,7 +358,8 @@ class ModerationCog(commands.Cog):
             "type": "tempban",
             "duration": ban_time,
             "reason": reason,
-            "author": author.id
+            "author": author.id,
+            "date": round(time_now().timestamp())
         }
 
         if str(user.id) in mod_logs:
@@ -418,7 +424,8 @@ class ModerationCog(commands.Cog):
             "type": "ban",
             "duration": -1,
             "reason": reason,
-            "author": author.id
+            "author": author.id,
+            "date": round(time_now().timestamp())
         }
 
         if str(user.id) in mod_logs:
@@ -442,6 +449,27 @@ class ModerationCog(commands.Cog):
         log_emb.set_footer(text=f"Moderation   -   TyranBot • {bot_version}")
 
         await log_channel.send(embed=log_emb)
+
+    logs_group = SlashCommandGroup("logs", "Show user moderation logs")
+
+    @logs_group.command(name="see")
+    @option(name="user", description="The user whose logs you're looking for")
+    async def logs_see(self, ctx: ApplicationContext, user: User):
+        with open("json/moderation.json", "r", encoding="utf-8") as log_file:
+            logs = json.load(log_file)
+
+        if str(user.id) in logs:
+            user_log = logs[str(user.id)]
+            text = "• " + "\n •".join([f"{log['type']}{' ' + log['duration'] if log['duration'] != -1 else ''} : {log['reason']}" for log in user_log])
+
+            emb = Embed(color=Color.teal(), description=f"This user has {len(user_log)} moderation logs.").set_author(name=f"{user} moderation logs")
+            emb.add_field(name="Details :", value=text)
+
+        else:
+            emb = Embed(color=Color.teal(), description="This user has no moderation logs.").set_author(name=f"{user} moderation logs")
+            emb.add_field(name="Details :", value="This user has no moderation logs")
+
+        await ctx.respond(embed=emb)
 
     @commands.slash_command(name="lock")
     @option(name="channel", description="The channel you want to lock", required=False)
