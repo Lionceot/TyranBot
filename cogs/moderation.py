@@ -151,7 +151,8 @@ class ModerationCog(commands.Cog):
 
         new_event = {
             "type": "tempmute",
-            "user": user.id
+            "user": user.id,
+            "guild": guild.id
         }
 
         with open("json/events.json", "r", encoding="utf-8") as event_file:
@@ -323,7 +324,8 @@ class ModerationCog(commands.Cog):
 
             new_event = {
                 "type": "tempban",
-                "user": user.id
+                "user": user.id,
+                "guild": ctx.guild_id
             }
 
             with open("json/events.json", "r", encoding="utf-8") as event_file:
