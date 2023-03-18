@@ -11,7 +11,7 @@ from typing import Union
 from random import randint
 from datetime import datetime, date, timedelta
 
-from main import db, get_parameter, time_now, MyBot, in_database, string_to_time
+from main import db, get_parameter, time_now, MyBot, in_database, string_to_time, time_to_string
 from custom_views import DeleteShopItemView
 
 
@@ -460,7 +460,13 @@ class ModerationCog(commands.Cog):
 
         if str(user.id) in logs:
             user_log = logs[str(user.id)]
-            text = "• " + "\n •".join([f"{log['type']}{' ' + log['duration'] if log['duration'] != -1 else ''} : {log['reason']}" for log in user_log])
+            text = "• " + "\n• ".join(
+                [
+                    f"{log['type']} by <@{log['author']}>"
+                    f"{' (' + time_to_string(log['duration']) + ')' if log['duration'] != -1 else ''} : "
+                    f"{log['reason']}" for log in user_log
+                ]
+            )
 
             emb = Embed(color=Color.teal(), description=f"This user has {len(user_log)} moderation logs.").set_author(name=f"{user} moderation logs")
             emb.add_field(name="Details :", value=text)
