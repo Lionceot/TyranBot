@@ -105,10 +105,11 @@ def sort_dict_by_value(d, reverse=False):
 def string_to_time(raw_time: str):
     time_dict = {
         "s": 1,  # second
+        "m": 60,  # minute
         "h": 3600,  # hour
         "d": 3600 * 24,  # day
         "w": 3600 * 24 * 7,  # week
-        "m": 3600 * 24 * 7 * 28,  # month
+        "y": 3600 * 24 * 7 * 28 * 12,  # year
     }
     times = raw_time.split(' ')
     total = 0
@@ -135,6 +136,40 @@ def string_to_time(raw_time: str):
     return total
 
 
+def time_to_string(raw_time: int):
+    result = ""
+
+    if raw_time >= 3600 * 24 * 365:
+        year_amt = raw_time // (3600 * 24 * 365)
+        raw_time -= year_amt * (3600 * 24 * 365)
+        result += f"{year_amt}y "
+
+    if raw_time >= 3600 * 24 * 7:
+        week_amt = raw_time // (3600 * 24 * 7)
+        raw_time -= week_amt * (3600 * 24 * 7)
+        result += f"{week_amt}w "
+
+    if raw_time >= 3600 * 24:
+        day_amt = raw_time // (3600 * 24)
+        raw_time -= day_amt * (3600 * 24)
+        result += f"{day_amt}d "
+
+    if raw_time >= 3600:
+        hour_amt = raw_time // 3600
+        raw_time -= hour_amt * 3600
+        result += f"{hour_amt}h "
+
+    if raw_time > 60:
+        minute_amt = raw_time // 60
+        raw_time -= minute_amt * 60
+        result += f"{minute_amt}m "
+
+    if raw_time > 1:
+        second_amt = raw_time
+        raw_time -= second_amt
+        result += f"{second_amt}s "
+
+    return result[:-1]
 
 
 class MyBot(commands.Bot):
@@ -293,6 +328,7 @@ class MyBot(commands.Bot):
 
         else:
             self.log_action(txt=f"Unhandled error occurred ({type(exception)}) : {exception}", level=50)
+            # raise exception  # used when debugging
 
 
 bot = MyBot()
@@ -310,7 +346,7 @@ async def ping(ctx: ApplicationContext):
 
 
 @tasks.loop(seconds=2)
-async def event_loop(self):
+async def event_loop():
     now = round(time_now().timestamp())
 
     with open("events.json", "r", encoding="utf-8") as event_file:
@@ -319,7 +355,7 @@ async def event_loop(self):
     for timestamp in events:
         if timestamp <= now:
             for item in events[timestamp]:
-                guild = self.bot.get_guild(item['guild'])
+                guild = bot.get_guild(item['guild'])
                 user = guild.get_member(item['user'])
 
                 if item['type'] == 'tempmute':
