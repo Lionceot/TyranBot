@@ -35,7 +35,7 @@ class ModerationCog(commands.Cog):
     - tempban
     - ban
     
-    logs see (show user records)
+    - logs see (show user records)
     logs clear
     
     - lock
@@ -46,6 +46,7 @@ class ModerationCog(commands.Cog):
     @commands.slash_command(name="warn")
     @option(name="user", description="The user you want to timeout", type=User)
     @option(name="reason", description="The reason why you want to timeout that user")
+    @commands.guild_only()
     async def warn(self, ctx: ApplicationContext, user: User, reason: str):
         await ctx.defer()
 
@@ -95,6 +96,7 @@ class ModerationCog(commands.Cog):
     @option(name="duration", description="The time for which the user will stay timeout")
     @option(name="reason", description="The reason why you want to timeout that user")
     @commands.has_permissions(moderate_members=True)
+    @commands.guild_only()
     async def timeout(self, ctx: ApplicationContext, user: Member, duration: str, reason: str):
         await ctx.defer()
 
@@ -143,6 +145,7 @@ class ModerationCog(commands.Cog):
     @option(name="duration", description="The time for which the user will stay muted")
     @option(name="reason", description="The reason why you want to mute that user")
     @commands.has_permissions(moderate_members=True)
+    @commands.guild_only()
     async def tempmute(self, ctx: ApplicationContext, user: Member, duration: str, reason: str):
         await ctx.defer()
 
@@ -232,6 +235,7 @@ class ModerationCog(commands.Cog):
     @option(name="user", description="The user you want to mute", type=Member)
     @option(name="reason", description="The reason why you want to mute that user")
     @commands.has_permissions(moderate_members=True)
+    @commands.guild_only()
     async def mute(self, ctx: ApplicationContext, user: Member, reason: str):
         await ctx.defer()
         log_channel_id, bot_version, mute_role_id = get_parameter(["moderation_logs", "version", "mute_role"])
@@ -296,6 +300,7 @@ class ModerationCog(commands.Cog):
     @option(name="user", description="The user you want to kick", type=Member)
     @option(name="reason", description="The reason why you want to kick that user")
     @commands.has_permissions(kick_members=True)
+    @commands.guild_only()
     async def kick(self, ctx: ApplicationContext, user: Member, reason: str):
         await ctx.defer()
         log_channel_id, bot_version = get_parameter(["moderation_logs", "version"])
@@ -341,6 +346,7 @@ class ModerationCog(commands.Cog):
     @option(name="duration", description="The time for which the user will stay banned")
     @option(name="reason", description="The reason why you want to ban that user")
     @commands.has_permissions(ban_members=True)
+    @commands.guild_only()
     async def tempban(self, ctx: ApplicationContext, user: Member, duration: str, reason: str):
         await ctx.defer()
         ban_time = string_to_time(duration)
@@ -409,6 +415,7 @@ class ModerationCog(commands.Cog):
     @option(name="user", description="The user you want to ban", type=Member)
     @option(name="reason", description="The reason why you want to ban that user")
     @commands.has_permissions(ban_members=True)
+    @commands.guild_only()
     async def ban(self, ctx: ApplicationContext, user: Member, reason: str):
         await ctx.defer()
         log_channel_id, bot_version = get_parameter(["moderation_logs", "version"])
@@ -454,32 +461,62 @@ class ModerationCog(commands.Cog):
 
     @logs_group.command(name="see")
     @option(name="user", description="The user whose logs you're looking for")
+    @commands.guild_only()
     async def logs_see(self, ctx: ApplicationContext, user: User):
         with open("json/moderation.json", "r", encoding="utf-8") as log_file:
             logs = json.load(log_file)
 
-        if str(user.id) in logs:
-            user_log = logs[str(user.id)]
-            text = "• " + "\n• ".join(
-                [
-                    f"{log['type']} by <@{log['author']}>"
-                    f"{' (' + time_to_string(log['duration']) + ')' if log['duration'] != -1 else ''} : "
-                    f"{log['reason']}" for log in user_log
-                ]
-            )
+        cleared = False
 
-            emb = Embed(color=Color.teal(), description=f"This user has {len(user_log)} moderation logs.").set_author(name=f"{user} moderation logs")
-            emb.add_field(name="Details :", value=text)
+        if str(user.id) in logs:
+            if len(logs[str(user.id)]) > 0:
+                user_log = logs[str(user.id)]
+                text = "• " + "\n• ".join(
+                    [
+                        f"{log['type']} by <@{log['author']}>"
+                        f"{' (' + time_to_string(log['duration']) + ')' if log['duration'] != -1 else ''} : "
+                        f"{log['reason']}" for log in user_log
+                    ]
+                )
+
+                emb = Embed(color=Color.teal(), description=f"This user has {len(user_log)} moderation logs.").set_author(name=f"{user} moderation logs")
+                emb.add_field(name="Details :", value=text)
+                await ctx.respond(embed=emb)
+                return
+
+            else:
+                cleared = True
+
+        emb = Embed(color=Color.teal(), description=f"This user has no moderation logs. {'(cleared)' if cleared else ''}")
+        emb.set_author(name=f"{user} moderation logs")
+        await ctx.respond(embed=emb)
+
+    @logs_group.command(name="clear")
+    @option(name="user", description="The user whose logs you want to delete")
+    @commands.is_owner()
+    @commands.guild_only()
+    async def logs_clear(self, ctx: ApplicationContext, user: User):
+        with open("json/moderation.json", "r", encoding="utf-8") as log_file:
+            logs = json.load(log_file)
+
+        if str(user.id) in logs:
+            if len(logs[str(user.id)]) > 0:
+                logs[str(user.id)] = []
+                with open("json/moderation.json", "w", encoding="utf-8") as log_file:
+                    json.dump(logs, log_file, indent=2)
+
+                await ctx.respond(f"{user.mention}'s moderation logs were cleared")
+
+            else:
+                await ctx.respond(f"{user.mention}'s moderation logs have already been cleared")
 
         else:
-            emb = Embed(color=Color.teal(), description="This user has no moderation logs.").set_author(name=f"{user} moderation logs")
-            emb.add_field(name="Details :", value="This user has no moderation logs")
-
-        await ctx.respond(embed=emb)
+            await ctx.respond(f"{user.mention} doesn't have any record", ephemeral=True)
 
     @commands.slash_command(name="lock")
     @option(name="channel", description="The channel you want to lock", required=False)
     @commands.has_permissions(manage_channels=True)
+    @commands.guild_only()
     async def lock_channel(self, ctx: ApplicationContext, channel: TextChannel = None):
 
         if channel is None:
@@ -497,6 +534,7 @@ class ModerationCog(commands.Cog):
     @commands.slash_command(name="unlock")
     @option(name="channel", description="The channel you want to unlock", required=False)
     @commands.has_permissions(manage_channels=True)
+    @commands.guild_only()
     async def unlock_channel(self, ctx: ApplicationContext, channel: TextChannel = None):
 
         if channel is None:
@@ -513,6 +551,7 @@ class ModerationCog(commands.Cog):
 
     @commands.slash_command(name="lockdown")
     @commands.has_permissions(administrator=True)
+    @commands.guild_only()
     async def lockdown(self, ctx: ApplicationContext):
         guild = ctx.guild
         default_role = guild.default_role
