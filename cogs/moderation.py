@@ -1,47 +1,22 @@
-import discord
-from discord import Embed, Color, TextChannel, Message, ApplicationContext, option, Role, User, Status, \
-    AutocompleteContext, OptionChoice, Guild, Member
-from discord.ext import commands, tasks
+from discord import Embed, Color, TextChannel, ApplicationContext, option, User, Member
+from discord.ext import commands
 from discord.commands import SlashCommandGroup
-from discord.ui import InputText, Modal, View
-from discord.ext.commands.errors import GuildNotFound
 
 import json
-from typing import Union
-from random import randint
-from datetime import datetime, date, timedelta
+from datetime import timedelta
 
-from main import db, get_parameter, time_now, MyBot, in_database, string_to_time, time_to_string
-from custom_views import DeleteShopItemView
+from main import get_parameter, time_now, MyBot, string_to_time, time_to_string
 
 
 class ModerationCog(commands.Cog):
 
     def __init__(self, bot_: MyBot):
         self.bot = bot_
-        self.shop_items = None
 
     @commands.Cog.listener()
     async def on_ready(self):
         log_msg = "[COG] 'ModerationCog' has been loaded"
         self.bot.log_action(txt=log_msg)
-
-    """
-    - warn 
-    - timeout
-    - tempmute
-    - mute
-    - kick
-    - tempban
-    - ban
-    
-    - logs see (show user records)
-    logs clear
-    
-    - lock
-    - unlock
-    - lockdown
-    """
 
     @commands.slash_command(name="warn")
     @option(name="user", description="The user you want to timeout", type=User)
