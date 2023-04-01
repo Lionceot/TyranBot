@@ -12,8 +12,9 @@ import asyncio
 from dotenv import load_dotenv
 
 from main import db, in_database, new_player, get_parameter, MyBot, time_now, get_text
-from custom_errors import NotEnoughMoney, IncorrectBetValue, UnknownSign, UserIsBot, UnknownObject, MaxAmountReached
-from custom_views import PaymentView
+from custom_errors import NotEnoughMoney, IncorrectBetValue, UnknownSign, UserIsBot, UnknownObject, MaxAmountReached, \
+    HowDidYouGetHere
+from custom_views import PaymentView, ShopBrowserView
 
 load_dotenv()
 
@@ -267,28 +268,87 @@ class EconomyCog(commands.Cog):
 
     @commands.slash_command(name="shop", description="Show the available things to buy")
     @commands.guild_only()
-    async def shop(self, ctx: ApplicationContext):
+    @option(name="category", description="What section are you looking for ?", choices=["ranks", "colors", "perks"])
+    async def shop(self, ctx: ApplicationContext, category: str = "home"):  # "lang
         user = ctx.author
         await new_player(user)
 
         curLang.execute(f"SELECT language FROM users WHERE discordID = {user.id}")
-        curA.execute("SELECT objectID, price FROM objects WHERE hidden = 0")
-
         user_lang = curLang.fetchone()[0]
-        products = curA.fetchall()
         currency_logo = get_parameter('currency-logo')
 
-        shop_emb = Embed(color=Color.blurple(),
-                         title=get_text("shop.title", user_lang),
-                         description=get_text("shop.description", user_lang)
-                         )
+        if category == 'home':
+            emb = Embed(color=Color.blurple(), description=get_text("shop.home.desc", user_lang)) \
+                .set_author(name=get_text("shop.home.author", user_lang)) \
+                .set_footer(text=get_text("shop.footer", user_lang))
+            await ctx.respond(embed=emb, view=ShopBrowserView(category=category, lang=user_lang), ephemeral=True)
+            return
 
-        for item in products:
-            field_name = f"{get_text(f'items.{item[0]}.name', user_lang)} - {item[1]} {currency_logo}"
-            field_value = get_text(f"items.{item[0]}.desc", user_lang)
-            shop_emb.add_field(name=field_name, value=field_value)
+        elif category == 'ranks':
+            curA.execute(f"SELECT objectID, price, need AS need_extID "
+                         f"FROM objects WHERE category='ranks' AND locked=0 AND exclusive=0;")
+            rowsA = curA.fetchall()
 
-        await ctx.respond(embed=shop_emb)
+            curB.execute(f"SELECT objectID, price, need AS need_extID "
+                         f"FROM objects WHERE category='ranks' AND locked=0 AND exclusive=1;")
+            rowsB = curB.fetchall()
+
+            emb = Embed(color=Color.dark_magenta(), description=get_text("shop.ranks.desc", user_lang)) \
+                .set_author(name=get_text("shop.ranks.author", user_lang)) \
+                .set_footer(text=get_text("shop.footer", user_lang))
+
+        elif category == 'colors':
+            curA.execute(f"SELECT objectID, price, need "
+                         f"FROM objects WHERE category='colors' AND locked=0 AND exclusive=0;")
+            rowsA = curA.fetchall()
+
+            curB.execute(f"SELECT objectID, price, need AS need_extID "
+                         f"FROM objects WHERE category='colors' AND locked=0 AND exclusive=1;")
+            rowsB = curB.fetchall()
+
+            emb = Embed(color=Color.orange(), description=get_text("shop.colors.desc", user_lang)) \
+                .set_author(name=get_text("shop.colors.author", user_lang)) \
+                .set_footer(text=get_text("shop.footer", user_lang))
+
+        elif category == 'perks':
+            curA.execute(f"SELECT objectID, price, need "
+                         f"FROM objects WHERE category='perks' AND locked=0 AND exclusive=0;")
+            rowsA = curA.fetchall()
+
+            curB.execute(f"SELECT objectID, price, need AS need_extID "
+                         f"FROM objects WHERE category='perks' AND locked=0 AND exclusive=1;")
+            rowsB = curB.fetchall()
+
+            emb = Embed(color=Color.dark_blue(), description=get_text("shop.perks.desc", user_lang)) \
+                .set_author(name=get_text("shop.perks.author", user_lang)) \
+                .set_footer(text=get_text("shop.footer", user_lang))
+
+        else:
+            raise HowDidYouGetHere
+
+        text = []
+        for elt in rowsA:
+            t = f"` ❱ ` {get_text(f'items.{elt[0]}.name', user_lang)} - {elt[1]} {currency_logo}"
+            if elt[2] is not None:
+                t += f"\n<:blank:988098422663942146>Need : {get_text(f'items.{elt[2]}.name', user_lang)}"
+            text.append(t)
+
+        text = "\n".join(text)
+
+        if len(rowsB) > 0:
+            exclu_text = []
+            for elt in rowsB:
+                t = f"` ❱ ` {get_text(f'items.{elt[0]}.name', user_lang)} - {elt[1]} {currency_logo}"
+                if elt[2] is not None:
+                    t += f"\n<:blank:988098422663942146>Need : {get_text(f'items.{elt[2]}.name', user_lang)}"
+                exclu_text.append(t)
+
+            exclu_text = "\n".join(exclu_text)
+            emb.add_field(name=get_text("shop.exclusive_items", user_lang), value=exclu_text)
+
+        emb.add_field(name=get_text("shop.global_items", user_lang), value=text, inline=False)
+
+        await ctx.respond(embed=emb, view=ShopBrowserView(category=category, lang=user_lang), ephemeral=True)
 
     # Do not set as a static method
     async def buy_autocomplete(self, ctx: AutocompleteContext):
@@ -732,7 +792,7 @@ class EconomyCog(commands.Cog):
                     await ctx.send(get_text("guess.lower", user_lang))
 
                 else:
-                    await ctx.send(get_text("guess.bigger", user_lang))
+                    await ctx.send(get_text("guess.higher", user_lang))
 
                 if attempts == 5:
                     lost = True

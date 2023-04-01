@@ -1,5 +1,5 @@
+from discord import ButtonStyle, User, Interaction, Embed, Color
 from discord.ui import View, Button
-from discord import ButtonStyle, User, Interaction
 
 from main import db, get_parameter, get_text
 
@@ -106,3 +106,186 @@ class DeleteShopItemDeny(Button):
     async def callback(self, interaction: Interaction):
         await interaction.response.send_message("Operation canceled !", ephemeral=True)
         await self.view.message.delete()
+
+
+class ShopBrowserView(View):
+    def __init__(self, category: str, lang: str):
+        super().__init__(
+            timeout=None
+        )
+
+        self.add_item(ShopHomeButton(disabled=category == 'home', lang=lang))
+        self.add_item(ShopRanksButton(disabled=category == 'ranks', lang=lang))
+        self.add_item(ShopColorsButton(disabled=category == 'colors', lang=lang))
+        self.add_item(ShopPerksButton(disabled=category == 'perks', lang=lang))
+
+    async def on_timeout(self):
+        pass
+
+
+class ShopHomeButton(Button):
+    def __init__(self, disabled: bool, lang: str):
+        super().__init__(
+            label=get_text("view.shop.home", ""),
+            style=ButtonStyle.blurple,
+            custom_id="shop:home",
+            disabled=disabled
+        )
+        self.lang = lang
+
+    async def callback(self, interaction: Interaction):
+        emb = Embed(color=Color.dark_theme(), description=get_text("shop.home.desc", self.lang))\
+            .set_author(name=get_text("shop.home.author", self.lang))\
+            .set_footer(text=get_text("shop.footer", self.lang))
+
+        await interaction.response.edit_message(embed=emb, view=ShopBrowserView(category='home', lang=self.lang))
+
+
+class ShopRanksButton(Button):  #"lang
+    def __init__(self, disabled: bool, lang: str):
+        super().__init__(
+            label=get_text("view.shop.ranks", ""),
+            style=ButtonStyle.blurple,
+            custom_id="shop:ranks_section",
+            disabled=disabled
+        )
+        self.lang = lang
+
+    async def callback(self, interaction: Interaction):
+        curA.execute(f"SELECT objectID, price, need AS need_extID "
+                     f"FROM objects WHERE category='ranks' AND locked=0 AND exclusive=0;")
+        rowsA = curA.fetchall()
+
+        curB.execute(f"SELECT objectID, price, need AS need_extID "
+                     f"FROM objects WHERE category='ranks' AND locked=0 AND exclusive=1;")
+        rowsB = curB.fetchall()
+
+        emb = Embed(color=Color.dark_magenta(), description=get_text("shop.ranks.desc", self.lang))\
+            .set_author(name=get_text("shop.title.ranks", self.lang))\
+            .set_footer(text=get_text("shop.footer", self.lang))
+
+        currency_logo = get_parameter('currency-logo')
+
+        text = []
+        for elt in rowsA:
+            t = f"` ❱ ` {get_text(f'items.{elt[0]}.name', self.lang)} - {elt[1]} {currency_logo}"
+            if elt[2] is not None:
+                t += f"\n<:blank:988098422663942146>Need : {get_text(f'items.{elt[2]}.name', self.lang)}"
+            text.append(t)
+
+        text = "\n".join(text)
+
+        if len(rowsB) > 0:
+            exclu_text = []
+            for elt in rowsB:
+                t = f"` ❱ ` {get_text(f'items.{elt[0]}.name', self.lang)} - {elt[1]} {currency_logo}"
+                if elt[2] is not None:
+                    t += f"\n<:blank:988098422663942146>Need : {get_text(f'items.{elt[2]}.name', self.lang)}"
+                exclu_text.append(t)
+
+            exclu_text = "\n".join(exclu_text)
+            emb.add_field(name=get_text("shop.exclusive_items", self.lang), value=exclu_text)
+
+        emb.add_field(name=get_text("shop.global_items", self.lang), value=text, inline=False)
+
+        await interaction.response.edit_message(embed=emb, view=ShopBrowserView(category='ranks', lang=self.lang))
+
+
+class ShopColorsButton(Button):  #"lang
+    def __init__(self, disabled: bool, lang: str):
+        super().__init__(
+            label=get_text("view.shop.colors", ""),
+            style=ButtonStyle.blurple,
+            custom_id="shop:colors_section",
+            disabled=disabled
+        )
+        self.lang = lang
+
+    async def callback(self, interaction: Interaction):
+        curA.execute(f"SELECT objectID, price, need "
+                     f"FROM objects WHERE category='colors' AND locked=0 AND exclusive=0;")
+        rowsA = curA.fetchall()
+
+        curB.execute(f"SELECT objectID, price, need AS need_extID "
+                     f"FROM objects WHERE category='colors' AND locked=0 AND exclusive=1;")
+        rowsB = curB.fetchall()
+
+        emb = Embed(color=Color.orange(), description=get_text("shop.colors.desc", self.lang))\
+            .set_author(name=get_text("shop.title.colors", self.lang))\
+            .set_footer(text=get_text("shop.footer", self.lang))
+
+        currency_logo = get_parameter('currency-logo')
+
+        text = []
+        for elt in rowsA:
+            t = f"` ❱ ` {get_text(f'items.{elt[0]}.name', self.lang)} - {elt[1]} {currency_logo}"
+            if elt[2] is not None:
+                t += f"\n<:blank:988098422663942146>Need : {get_text(f'items.{elt[2]}.name', self.lang)}"
+            text.append(t)
+
+        text = "\n".join(text)
+
+        if len(rowsB) > 0:
+            exclu_text = []
+            for elt in rowsB:
+                t = f"` ❱ ` {get_text(f'items.{elt[0]}.name', self.lang)} - {elt[1]} {currency_logo}"
+                if elt[2] is not None:
+                    t += f"\n<:blank:988098422663942146>Need : {get_text(f'items.{elt[2]}.name', self.lang)}"
+                exclu_text.append(t)
+
+            exclu_text = "\n".join(exclu_text)
+            emb.add_field(name=get_text("shop.exclusive_items", self.lang), value=exclu_text)
+
+        emb.add_field(name=get_text("shop.global_items", self.lang), value=text, inline=False)
+
+        await interaction.response.edit_message(embed=emb, view=ShopBrowserView(category='colors', lang=self.lang))
+
+
+class ShopPerksButton(Button):  #"lang
+    def __init__(self, disabled: bool, lang: str):
+        super().__init__(
+            label=get_text("view.shop.perks", ""),
+            style=ButtonStyle.blurple,
+            custom_id="shop:perks_section",
+            disabled=disabled
+        )
+        self.lang = lang
+
+    async def callback(self, interaction: Interaction):
+        curA.execute(f"SELECT objectID, price, need "
+                     f"FROM objects WHERE category='perks' AND locked=0 AND exclusive=0;")
+        rowsA = curA.fetchall()
+
+        curB.execute(f"SELECT objectID, price, need AS need_extID "
+                     f"FROM objects WHERE category='perks' AND locked=0 AND exclusive=1;")
+        rowsB = curB.fetchall()
+
+        emb = Embed(color=Color.dark_blue(), description=get_text("shop.perks.desc", self.lang))\
+            .set_author(name=get_text("shop.title.perks", self.lang))\
+            .set_footer(text=get_text("shop.footer", self.lang))
+
+        currency_logo = get_parameter('currency-logo')
+
+        text = []
+        for elt in rowsA:
+            t = f"` ❱ ` {get_text(f'items.{elt[0]}.name', self.lang)} - {elt[1]} {currency_logo}"
+            if elt[2] is not None:
+                t += f"\n<:blank:988098422663942146>Need : {get_text(f'items.{elt[2]}.name', self.lang)}"
+            text.append(t)
+
+        text = "\n".join(text)
+
+        if len(rowsB) > 0:
+            exclu_text = []
+            for elt in rowsB:
+                t = f"` ❱ ` {get_text(f'items.{elt[0]}.name', self.lang)} - {elt[1]} {currency_logo}"
+                if elt[2] is not None:
+                    t += f"\n<:blank:988098422663942146>Need : {get_text(f'items.{elt[2]}.name', self.lang)}"
+                exclu_text.append(t)
+
+            exclu_text = "\n".join(exclu_text)
+            emb.add_field(name=get_text("shop.exclusive_items", self.lang), value=exclu_text, inline=False)
+
+        emb.add_field(name=get_text("shop.global_items", self.lang), value=text, inline=False)
+
+        await interaction.response.edit_message(embed=emb, view=ShopBrowserView(category='perks', lang=self.lang))
