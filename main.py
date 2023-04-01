@@ -15,7 +15,7 @@ from discord.ext import commands, tasks
 from discord.errors import Forbidden
 from discord.ext.commands import errors, Context
 
-from custom_errors import NotEnoughMoney, UserIsBot, UnknownObject, MaxAmountReached, IncorrectBetValue, InvalidTimeString
+from custom_errors import NotEnoughMoney, UserIsBot, UnknownObject, MaxAmountReached, IncorrectBetValue, InvalidTimeString, HowDidYouGetHere
 
 
 load_dotenv()
@@ -290,45 +290,42 @@ class MyBot(commands.Bot):
 
         if isinstance(exception, errors.NotOwner):
             emb = Embed(color=Color.red(), description=get_text("command.owner_only", user_lang))
-            await ctx.respond(embed=emb, ephemeral=True)
 
         elif isinstance(exception, NotEnoughMoney):
             emb = Embed(color=Color.red(), description=get_text("command.not_enough_money", user_lang))
-            await ctx.respond(embed=emb, ephemeral=True)
 
         elif isinstance(exception, UserIsBot):
             emb = Embed(color=Color.red(), description=get_text("command.user_is_bot", user_lang))
-            await ctx.respond(embed=emb, ephemeral=True)
 
         elif isinstance(exception, UnknownObject):
             emb = Embed(color=Color.red(), description=get_text("command.unknown_object", user_lang))
-            await ctx.respond(embed=emb, ephemeral=True)
 
         elif isinstance(exception, MaxAmountReached):
             emb = Embed(color=Color.red(), description=get_text("buy.max_amount", user_lang))
-            await ctx.respond(embed=emb, ephemeral=True)
 
         elif isinstance(exception, IncorrectBetValue):
             emb = Embed(color=Color.red(), description=get_text("command.incorrect_bet", user_lang))
-            await ctx.respond(embed=emb, ephemeral=True)
 
         elif isinstance(exception, errors.CommandOnCooldown):
             # "lang: add time formatting for cooldown value
             emb = Embed(color=Color.red(), description=get_text("command.on_cooldown", user_lang))
-            await ctx.respond(embed=emb, ephemeral=True)
 
         elif isinstance(exception, InvalidTimeString):
             # "lang: insert reason and raw input
             emb = Embed(color=Color.red(), description=get_text("command.invalid_string", user_lang))
-            await ctx.respond(embed=emb, ephemeral=True)
 
         elif isinstance(exception, Forbidden):
             emb = Embed(color=Color.red(), description=get_text("command.missing_permission", user_lang))
-            await ctx.respond(embed=emb, ephemeral=True)
+
+        elif isinstance(exception, HowDidYouGetHere):
+            emb = Embed(color=Color.fuchsia(),  description=get_text("command.howdidyougethere", user_lang))
 
         else:
+            emb = Embed(color=Color.red(), description=get_text("commands.unexpected_error", user_lang))
             self.log_action(txt=f"Unhandled error occurred ({type(exception)}) : {exception}", level=50)
             # raise exception  # used when debugging
+
+        await ctx.respond(embed=emb, ephemeral=True)
 
 
 bot = MyBot()

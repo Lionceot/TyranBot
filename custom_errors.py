@@ -35,3 +35,7 @@ class InvalidTimeString(CommandError):
     def __init__(self, reason: str, raw_input: str):
         self.reason = reason
         self.raw_input = raw_input
+
+
+class HowDidYouGetHere(CommandError):
+    pass
