@@ -184,6 +184,7 @@ class MyBot(commands.Bot):
             intents=intents,
             owner_ids=config['owners'],
             debug_servers=config['debug_server_list'],
+            help_command=None,
             allowed_mentions=discord.AllowedMentions(
                 everyone=False,
                 users=True,
@@ -277,7 +278,9 @@ class MyBot(commands.Bot):
             await ctx.reply(embed=emb)
 
         else:
-            self.log_action(txt=f"Unhandled error occurred ({type(exception)})", level=50)
+            emb = Embed(color=Color.red(), description="unexpected error")
+            self.log_action(txt=f"Unhandled error occurred ({type(exception)}) : {exception}", level=50)
+            raise exception  # used when debugging
 
     async def on_application_command_error(self, ctx: ApplicationContext, exception: errors.CommandError):
         if exception in self.ignored_errors:
@@ -323,7 +326,7 @@ class MyBot(commands.Bot):
         else:
             emb = Embed(color=Color.red(), description=get_text("commands.unexpected_error", user_lang))
             self.log_action(txt=f"Unhandled error occurred ({type(exception)}) : {exception}", level=50)
-            # raise exception  # used when debugging
+            raise exception  # used when debugging
 
         await ctx.respond(embed=emb, ephemeral=True)
 
