@@ -39,3 +39,15 @@ class InvalidTimeString(CommandError):
 
 class HowDidYouGetHere(CommandError):
     pass
+
+
+class UnknownCode(CommandError):
+    pass
+
+
+class CodeLimitReached(CommandError):
+    pass
+
+
+class UnexpectedError(CommandError):
+    pass
