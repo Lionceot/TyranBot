@@ -90,6 +90,43 @@ class Utils(commands.Cog):
 
         await ctx.respond("end of command", ephemeral=True)
 
+    @commands.slash_command(name="server")
+    async def server(self, ctx: ApplicationContext):
+        guild = ctx.guild
+        emb = Embed(color=Color.blurple(), description=guild.description)
+        emb.set_author(name=f"{guild.name}")
+
+        icon = guild.icon
+        if icon is not None:
+            emb.set_thumbnail(url=icon.url)
+        emb.set_footer(text=f"『Server』     『TyranBot』•『{get_parameter('version')}』")
+
+        channel_amt = len(guild.channels)
+        category_amt = len(guild.categories)
+        member_amt = guild.member_count
+        role_amt = len(guild.roles)
+        owner = guild.owner
+        boost_lvl = guild.premium_tier
+        boost_amt = guild.premium_subscription_count
+        creation_date = guild.created_at
+
+        boost_txt = f"Boosted to level {boost_lvl} with {boost_amt} boost{'s' if boost_amt > 1 else ''}" if boost_amt > 0 else "No boost"
+
+        emb.add_field(name=f"Description", inline=False,
+                      value=f"<:owner:1117147820235952199> Owned by {owner.mention} \n"
+                            f"<:calendar:988081833252106302> Created <t:{round(creation_date.timestamp())}:R> \n"
+                            f"<:boost_color:1117147819095109672> {boost_txt}")
+
+        emb.add_field(name=f"Population", inline=True,
+                      value=f"<:user:1117145041102712986> **{member_amt}** members \n"
+                            f"<:role_amt:1117146149103620128> **{role_amt}** roles")
+
+        emb.add_field(name=f"Structure", inline=True,
+                      value=f"<:hashtag:1117140322674290730> **{channel_amt}** channels\n"
+                            f"<:category:1117142612722335875> **{category_amt}** categories")
+
+        await ctx.respond(embed=emb, ephemeral=True)
+
 
 def setup(bot_):
     bot_.add_cog(Utils(bot_))
