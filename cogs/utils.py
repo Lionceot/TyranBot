@@ -127,6 +127,24 @@ class Utils(commands.Cog):
 
         await ctx.respond(embed=emb, ephemeral=True)
 
+    @commands.slash_command(name="about")
+    async def about(self, ctx: ApplicationContext):
+        emb = Embed(color=Color.blurple(), description=f"The TyranBot is private multi-purpose bot. Its main functionality"
+                                                       f" is its economic system but it also handle moderation and has the"
+                                                       f" ambition to be able to do a lot more in the future.")
+
+        emb.set_author(name="TyranBot").set_thumbnail(url=self.bot.user.avatar.url)
+
+        emb.add_field(name="Statistics", value=f"Soon:tm:", inline=False)
+
+        emb.add_field(name="Credits", inline=False,
+                      value=f"Owner and developer : <@444504367152889877>\n"
+                            f"Icons : [Icons server](https://discord.gg/9AtkECMX2P)")
+
+        emb.set_footer(text=f"『About』     『TyranBot』•『{get_parameter('version')}』")
+
+        await ctx.respond(embed=emb, ephemeral=True)
+
 
 def setup(bot_):
     bot_.add_cog(Utils(bot_))
