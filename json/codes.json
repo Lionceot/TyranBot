@@ -1,0 +1,32 @@
+{
+  "money": {
+    "effect": "money",
+    "extra": 50,
+    "usage_limit": -1,
+    "usage_count": 3
+  },
+  "dm": {
+    "effect": "DM",
+    "extra": "super secret message",
+    "usage_limit": -1,
+    "usage_count": 2
+  },
+  "role": {
+    "effect": "role",
+    "extra": [
+      779602390415835156,
+      1089902768514400286
+    ],
+    "usage_limit": -1,
+    "usage_count": 2
+  },
+  "ping": {
+    "effect": "ping",
+    "extra": [
+      1003231666820616212,
+      "found treasure n\u00b01"
+    ],
+    "usage_limit": -1,
+    "usage_count": 6
+  }
+}
