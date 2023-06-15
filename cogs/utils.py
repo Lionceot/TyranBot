@@ -3,7 +3,7 @@ from discord.ext import commands
 
 import json
 
-from main import get_parameter, MyBot, db
+from main import get_parameter, MyBot, db, time_now
 from custom_errors import CodeLimitReached, UnknownCode, UnexpectedError
 
 
@@ -44,15 +44,16 @@ class Utils(commands.Cog):
         if effect == "money":
             curA.execute(f"UPDATE users SET coins = coins + {extra} WHERE discordID = {user.id}")
             db.commit()
-            emb = Embed(color=Color.green(), description=f"You successfully redeemed the code `{code}`.\n"
-                                                         f"You received {extra} coins.")
+            emb = Embed(color=Color.green(),
+                        description=f"You successfully redeemed the code `{code}`.\nYou received {extra} coins.")
             emb.set_footer(text=f"『Redeem』     『TyranBot』•『{get_parameter('version')}』")
             await ctx.respond(embed=emb, ephemeral=True)
 
         elif effect == "DM":
             try:
                 await user.send(extra)
-                emb = Embed(color=Color.green(), description=f"You successfully redeemed the code `{code}`.")
+                emb = Embed(color=Color.green(),
+                            description=f"You successfully redeemed the code `{code}`.")
                 emb.set_footer(text=f"『Redeem』     『TyranBot』•『{get_parameter('version')}』")
                 await ctx.respond(embed=emb, ephemeral=True)
             except Forbidden:
@@ -63,8 +64,9 @@ class Utils(commands.Cog):
             role = guild.get_role(extra[1])
             member = guild.get_member(user.id)
 
-            emb = Embed(color=Color.green(), description=f"You successfully redeemed the code `{code}`.\n"
-                                                         f"You received the role {role.mention}")
+            emb = Embed(color=Color.green(),
+                        description=f"You successfully redeemed the code `{code}`.\n"
+                                    f"You received the role {role.mention}")
             emb.set_footer(text=f"『Redeem』     『TyranBot』•『{get_parameter('version')}』")
 
             await member.add_roles(role)
@@ -72,12 +74,13 @@ class Utils(commands.Cog):
 
         elif effect == "ping":
             channel = self.bot.get_channel(extra[0])
-            emb = Embed(color=Color.dark_teal(), description=f"{user.mention} {extra[1]}")
+            emb = Embed(color=Color.dark_teal(), timestamp=time_now(),
+                        description=f"{user.mention} {extra[1]}")
             emb.set_footer(text=f"Code • {code}")
             await channel.send("@everyone", embed=emb)
 
-            emb = Embed(color=Color.green(), description=f"You successfully redeemed the code `{code}`.\n"
-                                                         f"**You {extra[1]}.**")
+            emb = Embed(color=Color.green(),
+                        description=f"You successfully redeemed the code `{code}`.\n**You {extra[1]}.**")
             emb.set_footer(text=f"『Redeem』     『TyranBot』•『{get_parameter('version')}』")
             await ctx.respond(embed=emb, ephemeral=True)
 
@@ -87,8 +90,6 @@ class Utils(commands.Cog):
         codes[code]['usage_count'] += 1
         with open("json/codes.json", "w", encoding="utf-8") as code_file:
             json.dump(codes, code_file, indent=2)
-
-        await ctx.respond("end of command", ephemeral=True)
 
     @commands.slash_command(name="server")
     async def server(self, ctx: ApplicationContext):
