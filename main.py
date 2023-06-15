@@ -10,12 +10,13 @@ from pytz import timezone
 from datetime import datetime
 
 import discord
-from discord import Embed, Color, Member, Intents, Activity, ActivityType, ApplicationContext, DiscordException, Guild
+from discord import Embed, Color, Intents, Activity, ApplicationContext, Guild
 from discord.ext import commands, tasks
 from discord.errors import Forbidden
 from discord.ext.commands import errors, Context
 
-from custom_errors import NotEnoughMoney, UserIsBot, UnknownObject, MaxAmountReached, IncorrectBetValue, InvalidTimeString, HowDidYouGetHere
+from custom_errors import NotEnoughMoney, UserIsBot, UnknownObject, MaxAmountReached, IncorrectBetValue, \
+    InvalidTimeString, HowDidYouGetHere
 
 
 load_dotenv()
@@ -186,9 +187,9 @@ class MyBot(commands.Bot):
             debug_servers=config['debug_server_list'],
             help_command=None,
             allowed_mentions=discord.AllowedMentions(
-                everyone=False,
+                everyone=True,
                 users=True,
-                roles=False,
+                roles=True,
                 replied_user=True
             ),
             slash_commands=True,
@@ -246,7 +247,7 @@ class MyBot(commands.Bot):
     async def on_application_command_completion(self, ctx: ApplicationContext):
         args = " ".join([f"[{option['name']}:{option['value']}]" for option in
                          ctx.selected_options]) if ctx.selected_options is not None else ''
-        log_msg = f"{ctx.author} ({ctx.author.id}) used app_command '{ctx.command}' {args}"
+        log_msg = f"{ctx.author} ({ctx.author.id}) used app_command '{ctx.command.qualified_name}' {args}"
         self.log_action(txt=log_msg, level=25)
 
     # TODO: handle cooldown errors (not in application commands)
@@ -324,6 +325,7 @@ class MyBot(commands.Bot):
             emb = Embed(color=Color.fuchsia(),  description=get_text("command.howdidyougethere", user_lang))
 
         else:
+            # todo: if user is owner send full error display else send error msg and ping owner
             emb = Embed(color=Color.red(), description=get_text("commands.unexpected_error", user_lang))
             self.log_action(txt=f"Unhandled error occurred ({type(exception)}) : {exception}", level=50)
             raise exception  # used when debugging
