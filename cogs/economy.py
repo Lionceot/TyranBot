@@ -1,4 +1,3 @@
-import discord
 from discord import Embed, Color, User, ApplicationContext, Message, SlashCommandGroup, AutocompleteContext, \
     OptionChoice, Forbidden
 from discord.ext import commands, tasks
@@ -72,7 +71,7 @@ class Economy(commands.Cog):
     @commands.slash_command(name="coins", description="Indique la quantité d'argent d'un utilisateur.",
                             brief="Show a user's amount of money")
     @commands.guild_only()
-    async def coins(self, ctx: ApplicationContext, user: discord.User = None):
+    async def coins(self, ctx: ApplicationContext, user: User = None):
         if user:
             if user.bot:
                 raise UserIsBot(user=user)
@@ -547,7 +546,7 @@ class Economy(commands.Cog):
 
     @commands.slash_command(name="inventory", description="See someone's inventory")
     @option(name="user", description="Who do you want to see the inventory ?")
-    async def inventory(self, ctx, user: discord.User = None):
+    async def inventory(self, ctx, user: User = None):
         """
         Show someone's inventory
 
@@ -599,7 +598,7 @@ class Economy(commands.Cog):
     #
     @commands.message_command(name="Author's inventory", description="Voir les objets possédés",
                               brief="Show a user's inventory")
-    async def mc_inventory(self, ctx, message: discord.Message):
+    async def mc_inventory(self, ctx, message: Message):
         user = message.author
         if user.bot:
             raise UserIsBot(user=user)
