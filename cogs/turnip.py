@@ -1,4 +1,4 @@
-from discord import Embed, Color, SlashCommandGroup, ApplicationContext
+from discord import Embed, Color, SlashCommandGroup, ApplicationContext, Forbidden
 from discord.ext import commands, tasks
 from discord.commands import option
 
@@ -140,8 +140,8 @@ class Turnip(commands.Cog):
         self.resetting = False
 
     async def save_user_data(self, start_date):
-        currency_logo, bot_version, lb_role, lb_channel = get_parameter(
-            ['currency-logo', 'version', 'turnip-leaderboard-role', 'turnip-leaderboard-channel']
+        currency_logo, bot_version, lb_role, lb_channel, turnip_logo = get_parameter(
+            ['currency-logo', 'version', 'turnip-leaderboard-role', 'turnip-leaderboard-channel', 'turnip-emote']
         )
 
         # Querying data from the DB
@@ -153,7 +153,8 @@ class Turnip(commands.Cog):
         logs = {}
 
         # Leaderboard categories
-        highest_lost = {"id": -1, "id2": -1, "id3": -1}
+        most_earned = {"id": -1, "id2": -1, "id3": -1}
+        most_lost = {"id": -1, "id2": -1, "id3": -1}
         most_rotten = {"id": -1, "id2": -1, "id3": -1}
         most_bought = {"id": -1, "id2": -1, "id3": -1}
 
@@ -178,31 +179,36 @@ class Turnip(commands.Cog):
 
             if recap:
                 # todo_later: need language parameter
-                recap_emb = Embed(color=Color.magenta())
-
-                recap_emb.add_field(name="Achats",
-                                    value=f"{turnip_bought} 🥔 \n{expenses} {currency_logo} dépensés")
-                recap_emb.add_field(name="Vente", value=f"{turnip_sold} 🥔 \n{earnings} {currency_logo} obtenus")
-
-                if earnings < expenses:
-                    msg = f"{abs(earnings - expenses)} {currency_logo} perdus"
-                elif expenses == earnings:
-                    msg = "Autant d'argent dépensé qu'obtenu"
-                else:
-                    msg = f"{earnings - expenses} {currency_logo} obtenus"
-
-                recap_emb.add_field(name="Total", value=f"{rotten} 🥔 perdues {'(bravo!)' if rotten == 0 else ''}"
-                                                        f"\n{msg}")
-
-                recap_emb.set_footer(text=f"『Recap』     『 TyranBot 』•『{bot_version}』")
-
                 user = self.bot.get_user(user_id)
-                await user.send("Voici ton récapitulatif de la semaine", embed=recap_emb)
 
-            lowest_track = key_with_lowest_value(highest_lost)
-            if highest_lost[lowest_track] < loss:
-                del highest_lost[lowest_track]
-                highest_lost[user_id] = loss
+                recap_emb = Embed(color=0xf6f0de)
+                recap_emb.set_author(name=f"Semaine du {'/'.join(reversed(start_date.split('-')))}",
+                                     icon_url=user.avatar)
+                recap_emb.add_field(name="Achats", value=f"- {turnip_logo} {turnip_bought}\n"
+                                                         f"- {currency_logo} {expenses}")
+                recap_emb.add_field(name="Ventes", value=f"- {turnip_logo} {turnip_sold}\n"
+                                                         f"- {currency_logo} {earnings}")
+
+                if loss > 0:
+                    total_msg = f"{loss} perdu{'s' if loss > 1 else ''}"
+
+                else:
+                    total_msg = f"{earnings - expenses} gagné{'s' if earnings - expenses > 1 else ''}"
+
+                recap_emb.add_field(name="Total", value=f"- {turnip_logo} {rotten} pourri{'s' if rotten > 1 else ''} \n"
+                                                        f"- {currency_logo} {total_msg}",
+                                    inline=False)
+                recap_emb.set_footer(text=f"『Recap』     『TyranBot』•『{bot_version}』")
+
+                try:
+                    await user.send(embed=recap_emb)
+                except Forbidden:
+                    pass
+
+            lowest_track = key_with_lowest_value(most_lost)
+            if most_lost[lowest_track] < loss:
+                del most_lost[lowest_track]
+                most_lost[user_id] = loss
 
             lowest_track = key_with_lowest_value(most_rotten)
             if most_rotten[lowest_track] < rotten:
@@ -214,6 +220,11 @@ class Turnip(commands.Cog):
                 del most_bought[lowest_track]
                 most_bought[user_id] = turnip_bought
 
+            lowest_track = key_with_lowest_value(most_earned)
+            if most_earned[lowest_track] < earnings:
+                del most_earned[lowest_track]
+                most_earned[user_id] = earnings
+
         with open(f"logs/turnip/{start_date}.json", 'w', encoding='utf-8') as turnip_log_file:
             json.dump(logs, turnip_log_file, indent=2)
 
@@ -224,33 +235,61 @@ class Turnip(commands.Cog):
         total_earned = rowB[2]
         total_spend = rowB[3]
 
-        lead_emb = Embed(color=Color.dark_teal(),
-                         title=f"Résumé de la semaine du {'/'.join(reversed(start_date.split('-')))}",
-                         description=f"Un total de {total_bought} patates achetées pour {total_spend} {currency_logo}"
-                                     f" et {total_sold} vendues pour {total_earned} {currency_logo}")
+        lead_emb = Embed(color=0x61ad3c, title="Résumé de la semaine du 25/06/2023")
 
-        leaderboards = {
-            "Most money lost": highest_lost, "Most turnips rotten": most_rotten, "Most turnips bought": most_bought
+        leaderboards_1 = {
+            "PeppaCoins gagnés": most_earned,
+            "PeppaCoins perdus": most_lost
         }
 
-        for key in leaderboards:
+        for key in leaderboards_1:
             users = []
-            track = sort_dict_by_value(leaderboards[key], True)
+            track = sort_dict_by_value(leaderboards_1[key], True)
             medal_dict = {1: "first_place", 2: "second_place", 3: "third_place"}
             counter = 0
             for user in track:
+                if counter > 3:
+                    break
+
                 if track[user] > 0:
                     counter += 1
-                    users.append(f":{medal_dict[counter]}: <@{user}> - {track[user]}")
+                    users.append(f":{medal_dict[counter]}: {currency_logo} {track[user]} - <@{user}>")
             lead_emb.add_field(name=key, value="\n".join(users))
 
-        extra_msg = ""
+        leaderboards_2 = {
+            "Navet pourris": most_rotten,
+            "Navet achetés": most_bought
+        }
+
+        lead_emb.add_field(name="\u200b", value="\u200b")
+
+        for key in leaderboards_2:
+            users = []
+            track = sort_dict_by_value(leaderboards_2[key], True)
+            medal_dict = {1: "first_place", 2: "second_place", 3: "third_place"}
+            counter = 0
+            for user in track:
+                if counter > 3:
+                    break
+
+                if track[user] > 0:
+                    counter += 1
+                    users.append(f":{medal_dict[counter]}: {turnip_logo} {track[user]} - <@{user}>")
+            lead_emb.add_field(name=key, value="\n".join(users))
+
+        lead_emb.add_field(name="\u200b", value="\u200b")
+
         magic_money = total_earned - total_spend  # money that (dis)appeared of the economy
         if magic_money < 0:
-            extra_msg += f"{abs(magic_money)} {currency_logo} retiré de l'économie"
-        elif magic_money > 0:
-            extra_msg += f"{magic_money} {currency_logo} ajouté à l'économie"
-        lead_emb.add_field(name="Extra", value=f"{total_bought - total_sold} 🥔 pourries \n{extra_msg} ")
+            magic_msg = f"{abs(magic_money)} retiré de l'économie"
+        else:
+            magic_msg = f"{magic_money} ajouté à l'économie"
+
+        lead_emb.add_field(name="Total", inline=False,
+                           value=f"- {turnip_logo} {total_bought} achetés pour {currency_logo} {total_spend} coins\n"
+                                 f"- {turnip_logo} {total_sold} vendus pour {currency_logo} {total_earned} coins\n"
+                                 f"- {currency_logo} {magic_msg}")
+        lead_emb.set_footer(text=f"『Recap』     『TyranBot』•『{get_parameter('version')}』")
 
         # Getting the channel to send the official leaderboard of the week
         lb_br_channel = self.bot.get_channel(lb_channel)
@@ -404,9 +443,9 @@ class Turnip(commands.Cog):
             durations = self.phases_duration(pattern)
             base_price, final_prices = self.phases_prices(pattern, durations)
             with open("test_result.txt", "a", encoding="utf-8") as result_file:
-                result_file.write(f"{pattern}, {base_price}, {final_prices}\n")
+                result_file.write(f"{pattern}, {base_price}, {final_prices}\n")"""
 
-        await self.new_week(round(time_now().timestamp()))"""
+        await self.new_week(round(time_now().timestamp()))
 
         await ctx.respond(f"EoC", ephemeral=True)
 
@@ -453,7 +492,7 @@ class Turnip(commands.Cog):
             curC.execute(f"UPDATE turnip SET turnipBought=turnipBought+{amt}, coinsIntoTurnip=coinsIntoTurnip+{price} "
                          f"WHERE discordID = {user.id}")
             db.commit()
-            # await ctx.respond(get_test("turnip.buy.success", user_lang))  
+            # await ctx.respond(get_test("turnip.buy.success", user_lang))
             await ctx.respond(f"Successfully bought {amt} turnip for {price} {get_parameter('currency-logo')}")
 
     @turnip_group.command(name="sell", usage="[turnip_amount: int]")
