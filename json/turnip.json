@@ -25,29 +25,33 @@
       "3": 15
     }
   },
-  "week-started": "2022-07-31",
-  "base-price": 0,
-  "pattern": 0,
-  "last-pattern": null,
-  "durations": [],
-  "prices": [
-    0,
-    1,
-    2,
-    3,
-    4,
+  "week-started": "2023-06-25",
+  "half-day": 4,
+  "base-price": 107,
+  "pattern": "0",
+  "last-pattern": "1",
+  "durations": [
     5,
-    6,
-    7,
-    8,
-    9,
-    10,
-    11,
-    12,
-    13
+    3,
+    2,
+    2,
+    1
   ],
-  "half-day": 11,
-  "active-price": 11,
-  "can-buy": false,
-  "can-sell": true
+  "prices": [
+    107,
+    107,
+    101,
+    149,
+    97,
+    97,
+    109,
+    75,
+    71,
+    64,
+    131,
+    118,
+    75,
+    70,
+    113
+  ]
 }
