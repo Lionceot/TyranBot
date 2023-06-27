@@ -16,7 +16,7 @@ from discord.errors import Forbidden
 from discord.ext.commands import errors, Context
 
 from custom_errors import NotEnoughMoney, UserIsBot, UnknownObject, MaxAmountReached, IncorrectBetValue, \
-    InvalidTimeString, HowDidYouGetHere
+    InvalidTimeString, HowDidYouGetHere, CommandDisabled, CantBuyTurnip, CantSellTurnip
 
 
 load_dotenv()
@@ -201,32 +201,51 @@ class MyBot(commands.Bot):
 
         self.log_file_name = time_now().strftime('%Y-%m-%d_%H.%M.%S')
 
-        logging.basicConfig(filename=f"logs/{self.log_file_name}.log", level=20)
+        logging.basicConfig(filename=f"logs/bot/{self.log_file_name}.log", level=20)
         logging.getLogger("discord").setLevel(logging.INFO)
         logging.getLogger("discord.http").setLevel(logging.WARNING)
 
-        self.logger = logging.getLogger(__name__)
+        self.bot_logger = logging.getLogger("BOT")
+        self.cmd_logger = logging.getLogger("CMD")
+        self.admin_logger = logging.getLogger("ADMIN")
+        self.mod_logger = logging.getLogger("MOD")
+        self.eco_logger = logging.getLogger("ECO")
+        self.turnip_logger = logging.getLogger("TNP")
+
         # self.logger.handlers = [LogtailHandler(source_token=getenv("LOGTAIL_TOKEN"))]
 
         for filename in listdir('./cogs'):
+            if "turnip" in filename:
+                continue
             if filename.endswith('.py'):
                 self.load_extension(f"cogs.{filename[:-3]}")
 
-    def log_action(self, txt: str, level: int = 20):
-        self.logger.log(msg=txt, level=level)
-        color_code = {
-            20: "\033[0;34m",
-            30: "\033[0;33m",
-            40: "\033[7m\033[1;31m",
+    def log_action(self, txt: str, logger: logging.Logger, level: int = 20):
+        logger.log(msg=txt, level=level)
+
+        logger_color = {
+            self.bot_logger: "\033[0;36m",
+            self.cmd_logger: "\033[0;37m",
+            self.admin_logger: "\033[1m\033[1;32m",
+            self.mod_logger: "\033[0;34m",
+            self.eco_logger: "\033[0;32m",
+            self.turnip_logger: "\033[0;32m",
+            30: "\033[1;33m",
+            40: "\033[1;31m",
             50: "\033[7m\033[1;31m"
         }
-        if level in color_code:
-            txt = color_code[level] + txt + "\033[0m"
+
+        if level >= 30 and level in logger_color:
+            txt = logger_color[level] + txt + "\033[0m"
+
+        else:
+            txt = logger_color[logger] + txt + "\033[0m"
+
         print(txt)
 
     async def on_ready(self):
         start_msg = f"[BOT] Bot connected as {self.user}"
-        self.log_action(txt=start_msg)
+        self.log_action(start_msg, self.bot_logger)
 
         await event_loop.start()
 
@@ -242,13 +261,13 @@ class MyBot(commands.Bot):
 
     async def on_guild_join(self, guild: Guild):
         text = f"Guild {guild.name} joined. [id: {guild.id}, owner: {guild.owner}|{guild.owner_id}]"
-        self.log_action(text)
+        self.log_action(text, self.bot_logger)
 
     async def on_application_command_completion(self, ctx: ApplicationContext):
         args = " ".join([f"[{option['name']}:{option['value']}]" for option in
                          ctx.selected_options]) if ctx.selected_options is not None else ''
         log_msg = f"{ctx.author} ({ctx.author.id}) used app_command '{ctx.command.qualified_name}' {args}"
-        self.log_action(txt=log_msg, level=25)
+        self.log_action(log_msg, self.cmd_logger)
 
     # TODO: handle cooldown errors (not in application commands)
     async def on_command_error(self, ctx: Context, exception: errors.CommandError):
@@ -280,7 +299,7 @@ class MyBot(commands.Bot):
 
         else:
             emb = Embed(color=Color.red(), description="unexpected error")
-            self.log_action(txt=f"Unhandled error occurred ({type(exception)}) : {exception}", level=50)
+            self.log_action(f"Unhandled error occurred ({type(exception)}) : {exception}", self.cmd_logger, 50)
             raise exception  # used when debugging
 
     async def on_application_command_error(self, ctx: ApplicationContext, exception: errors.CommandError):
@@ -324,11 +343,25 @@ class MyBot(commands.Bot):
         elif isinstance(exception, HowDidYouGetHere):
             emb = Embed(color=Color.fuchsia(),  description=get_text("command.howdidyougethere", user_lang))
 
+        elif isinstance(exception, CommandDisabled):
+            # emb = Embed(color=Color.fuchsia(),  description=get_text("command.disabled", user_lang))
+            emb = Embed(color=Color.fuchsia(), description=f"Command disabled ({exception.reason})")
+
         else:
-            # todo: if user is owner send full error display else send error msg and ping owner
+            self.log_action(f"Unhandled error occurred ({type(exception)}) : {exception}", self.cmd_logger, 50)
+            adm_emb = Embed(color=Color.red(), description=f"Error `{type(exception)}` cannot be handled. "
+                                                           f"Check console for more details.")
             emb = Embed(color=Color.red(), description=get_text("commands.unexpected_error", user_lang))
-            self.log_action(txt=f"Unhandled error occurred ({type(exception)}) : {exception}", level=50)
-            raise exception  # used when debugging
+
+            if ctx.author.id in bot.owner_ids:
+                await ctx.respond(embed=adm_emb, ephemeral=True)
+
+            else:
+                await ctx.respond(embed=emb, ephemeral=True)
+                owner = self.get_user(444504367152889877)
+                await owner.send(embed=adm_emb)
+
+            raise exception
 
         await ctx.respond(embed=emb, ephemeral=True)
 
@@ -344,7 +377,7 @@ async def ping(ctx: ApplicationContext):
     limit = get_parameter('ping_limit')
 
     if latency > limit:
-        bot.log_action(txt=f"Bot ping is at {latency} ms", level=30)
+        bot.log_action(f"[BOT] Bot ping is at {latency} ms", bot.bot_logger, 30)
 
 
 @tasks.loop(seconds=2)
@@ -362,7 +395,7 @@ async def event_loop():
 
                 if item['type'] == 'tempmute':
                     mute_role = guild.get_role(get_parameter('mute_role'))
-                    await user.remove_roles(mute_role)
+                    await user.remove_roles(mute_role, reason="End of sentence")
 
                 elif item['type'] == 'tempban':
                     await user.unban(reason="End of sentence")
@@ -370,12 +403,12 @@ async def event_loop():
 
 @event_loop.before_loop
 async def before_event_loop():
-    bot.log_action(txt="[LOOP] Event loop has started.")
+    bot.log_action("[LOOP] Event loop has started.", bot.bot_logger)
 
 
 @event_loop.after_loop
 async def after_event_loop():
-    bot.log_action(txt="[LOOP] Event loop has stopped.")
+    bot.log_action("[LOOP] Event loop has stopped.", bot.bot_logger)
 
 
 @bot.slash_command(name="reload", description="Redémarre une cog", brief="Reload a cog", hidden=True, guild_ids=[733722460771581982])
@@ -387,20 +420,24 @@ async def reload(ctx: ApplicationContext, extension=None):
                 try:
                     bot.reload_extension(f"cogs.{filename_[:-3]}")
                     await ctx.respond(f"> Cog `{filename_[:-3]}` successfully reloaded", ephemeral=True)
+                    bot.log_action(f"[COG] '{extension}' has been reloaded", bot.bot_logger)
 
                 except discord.ExtensionNotLoaded:
                     bot.load_extension(f"cogs.{filename_[:-3]}")
                     await ctx.respond(f"> Cog `{filename_[:-3]}` successfully loaded", ephemeral=True)
+                    bot.log_action(f"[COG] '{extension}' has been loaded", bot.bot_logger)
 
     else:
         try:
             bot.reload_extension(f"cogs.{extension}")
             await ctx.respond(f"> Cog `{extension}` successfully reloaded", ephemeral=True)
+            bot.log_action(f"[COG] '{extension}' has been reloaded", bot.bot_logger)
 
         except discord.ExtensionNotLoaded:
             try:
                 bot.load_extension(f"cogs.{extension}")
                 await ctx.respond(f"> Cog `{extension}` successfully loaded", ephemeral=True)
+                bot.log_action(f"[COG] '{extension}' has been loaded", bot.bot_logger)
 
             except discord.ExtensionNotFound:
                 await ctx.respond(f"> Cog `{extension}` not found", ephemeral=True)
@@ -412,6 +449,7 @@ async def load(ctx: ApplicationContext, extension=None):
     try:
         bot.load_extension(f"cogs.{extension}")
         await ctx.respond(f"> Cog `{extension}` successfully loaded", ephemeral=True)
+        bot.log_action(f"[COG] '{extension}' has been loaded", bot.bot_logger)
 
     except discord.ExtensionNotFound:
         await ctx.respond(f"> Cog `{extension}` not found", ephemeral=True)
@@ -426,6 +464,7 @@ async def unload(ctx: ApplicationContext, extension=None):
     try:
         bot.unload_extension(f"cogs.{extension}")
         await ctx.respond(f"> Cog `{extension}` successfully unloaded", ephemeral=True)
+        bot.log_action(f"[COG] '{extension}' has been unloaded", bot.bot_logger)
 
     except discord.ExtensionNotLoaded:
         await ctx.respond(f"> Cog `{extension}` not loaded", ephemeral=True)
@@ -436,4 +475,4 @@ async def unload(ctx: ApplicationContext, extension=None):
 
 if __name__ == '__main__':
     bot.run(getenv("BOT_TOKEN"))
-    bot.log_action(txt="[BOT] Bot closed.")
+    bot.log_action("[BOT] Bot closed.", bot.bot_logger)
