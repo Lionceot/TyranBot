@@ -433,6 +433,7 @@ class Turnip(commands.Cog):
 
     @turnip_group.command(name="debug")
     @option(name="count")
+    @commands.is_owner()
     async def turnip_debug(self, ctx: ApplicationContext):
         await ctx.defer()
         """with open("json/turnip.json", 'r', encoding='utf-8') as turnip_file:
@@ -450,22 +451,29 @@ class Turnip(commands.Cog):
         await ctx.respond(f"EoC", ephemeral=True)
 
     @turnip_group.command(name="info")
-    async def turnip_info(self, ctx):
-        currency_logo, bot_version = get_parameter(['currency-logo', 'version'])
+    async def turnip_info(self, ctx: ApplicationContext):
+        currency_logo, bot_version, turnip_logo = get_parameter(['currency-logo', 'version', 'turnip-emote'])
+
+        curA.execute(f"SELECT turnipBought, turnipSold FROM turnip WHERE discordID = {ctx.author.id}")
+        rowA = curA.fetchone()
+        turnip_bought = rowA[0]
+        turnip_sold = rowA[1]
 
         if self.can_buy:
             end_buy_phase = self.week_started_timestamp + 24 * 3600 - 1
             emb = Embed(color=0xfaf6e8,
                         description=f"Vous pouvez actuellement __**acheter**__ des navets et ce jusqu'au <t:{end_buy_phase}>\n\n"
-                                    f"**Prix d'achat :** {currency_logo} {self.buy_price}")
+                                    f"**Prix d'achat :** {currency_logo} {self.buy_price}"
+                                    f"\n\nVous avez {turnip_logo} {turnip_bought - turnip_sold}.")
 
         else:
             end_week = self.week_started_timestamp + 7 * 24 * 3600 - 1
             emb = Embed(color=0xfaf6e8,
                         description=f"Vous pouvez actuellement __**vendre**__ des navets et ce jusqu'au <t:{end_week}>\n"
                                     f"Prochain changement: <t:{self.time_end_hd}:R>\n\n"
-                                    f"**Prix de base :** {currency_logo} 90\n"
-                                    f"**Prix de vente :** {currency_logo} 101")
+                                    f"**Prix de base :** {currency_logo} {self.buy_price}\n"
+                                    f"**Prix de vente :** {currency_logo} {self.sell_price}"
+                                    f"\n\nVous avez {turnip_logo} {turnip_bought - turnip_sold}")
 
         emb.set_author(name="Marché du navet",
                        icon_url="https://cdn.discordapp.com/emojis/1123000566969274508.webp?size=96&quality=lossless")
@@ -474,7 +482,7 @@ class Turnip(commands.Cog):
 
 #
     @turnip_group.command(name="buy")
-    async def turnip_buy(self, ctx, amt: int):
+    async def turnip_buy(self, ctx: ApplicationContext, amt: int):
         await new_player(ctx.author)
 
         if not self.can_buy:
@@ -489,15 +497,18 @@ class Turnip(commands.Cog):
         if coins < price:
             raise NotEnoughMoney
         else:
+            currency_logo, turnip_logo = get_parameter(['currency-logo', 'turnip-emote'])
+
             curB.execute(f"UPDATE users SET coins = coins - {price} WHERE discordID = {user.id}")
             curC.execute(f"UPDATE turnip SET turnipBought=turnipBought+{amt}, coinsIntoTurnip=coinsIntoTurnip+{price} "
                          f"WHERE discordID = {user.id}")
             db.commit()
             # await ctx.respond(get_test("turnip.buy.success", user_lang))
-            await ctx.respond(f"Successfully bought {amt} turnip for {price} {get_parameter('currency-logo')}")
+            await ctx.respond(f"<:yes_tick:1123329478517596251> Successfully bought {turnip_logo} **{amt}** for {currency_logo} **{price}**")
+            self.bot.log_action(f"[TURNIP] {user} bought {amt} turnip for {price} coins", self.bot.turnip_logger)
 
     @turnip_group.command(name="sell", usage="[turnip_amount: int]")
-    async def turnip_sell(self, ctx, amt: int):
+    async def turnip_sell(self, ctx: ApplicationContext, amt: int):
         await new_player(ctx.author)
 
         if not self.can_sell:
@@ -516,6 +527,7 @@ class Turnip(commands.Cog):
 
         amt = min(amt, turnip_possessed)
 
+        currency_logo, turnip_logo = get_parameter(['currency-logo', 'turnip-emote'])
         earnings = amt * self.sell_price
         curB.execute(
             f"UPDATE turnip SET turnipSold= turnipSold + {amt}, coinsFromTurnip= coinsFromTurnip + {earnings} "
@@ -524,7 +536,8 @@ class Turnip(commands.Cog):
         db.commit()
 
         # await ctx.respond(get_test("turnip.sell.success", user_lang))
-        await ctx.respond(f"Successfully sold {amt} turnips for {earnings}")
+        await ctx.respond(f"<:yes_tick:1123329478517596251> Successfully sold {turnip_logo} **{amt}** for {currency_logo} **{earnings}**")
+        self.bot.log_action(f"[TURNIP] {user} sold {amt} turnip for {earnings} coins", self.bot.turnip_logger)
 
 
 def setup(client):
