@@ -33,7 +33,7 @@ class Turnip(commands.Cog):
         self.week_started_timestamp = round(datetime.strptime(self.week_started, "%Y-%m-%d").timestamp())
 
         self.half_day = data["half-day"]
-        self.time_end_hd = self.week_started_timestamp + self.half_day * 3600 * 12
+        self.time_end_hd = self.week_started_timestamp + (self.half_day+1) * 3600 * 12
 
         self.can_buy = self.half_day < 3
         self.buy_price = data['base-price']
@@ -451,24 +451,25 @@ class Turnip(commands.Cog):
 
     @turnip_group.command(name="info")
     async def turnip_info(self, ctx):
-        with open("json/turnip.json", 'r', encoding='utf-8') as turnip_file:
-            data = json.load(turnip_file)
-            start_time = int(datetime.strptime(data['week-started'], "%Y-%m-%d").timestamp())
+        currency_logo, bot_version = get_parameter(['currency-logo', 'version'])
 
-        day = date.today().strftime("%a")
-        emb = Embed(color=Color.teal(), title="🥔 turnip market 🥔")
-
-        if day == 'Sun':
-            end_time = start_time + 3600*24
-            emb.add_field(name="Turnip buy price", value=f"{self.buy_price} {get_parameter('currency-logo')}")
-            emb.add_field(name="Time left to buy", value=f"<t:{end_time}:R>")
+        if self.can_buy:
+            end_buy_phase = self.week_started_timestamp + 24 * 3600 - 1
+            emb = Embed(color=0xfaf6e8,
+                        description=f"Vous pouvez actuellement __**acheter**__ des navets et ce jusqu'au <t:{end_buy_phase}>\n\n"
+                                    f"**Prix d'achat :** {currency_logo} {self.buy_price}")
 
         else:
-            end_time = start_time + 3600*24*7
-            emb.add_field(name="Turnip sell price :", value=f"{self.sell_price} {get_parameter('currency-logo')}")
-            emb.add_field(name="Time left to sell", value=f"<t:{end_time}:R>")
+            end_week = self.week_started_timestamp + 7 * 24 * 3600 - 1
+            emb = Embed(color=0xfaf6e8,
+                        description=f"Vous pouvez actuellement __**vendre**__ des navets et ce jusqu'au <t:{end_week}>\n"
+                                    f"Prochain changement: <t:{self.time_end_hd}:R>\n\n"
+                                    f"**Prix de base :** {currency_logo} 90\n"
+                                    f"**Prix de vente :** {currency_logo} 101")
 
-        emb.set_footer(text=f"『Market info』     『 TyranBot 』•『{get_parameter('version')}』")
+        emb.set_author(name="Marché du navet",
+                       icon_url="https://cdn.discordapp.com/emojis/1123000566969274508.webp?size=96&quality=lossless")
+        emb.set_footer(text=f"『Marché du navet』     『TyranBot』•『{bot_version}』")
         await ctx.respond(embed=emb)
 
 #
@@ -522,7 +523,7 @@ class Turnip(commands.Cog):
         curC.execute(f"UPDATE users SET coins= coins + {earnings} WHERE discordID= {user.id}")
         db.commit()
 
-        # await ctx.respond(get_test("turnip.sell.success", user_lang))  # "lang
+        # await ctx.respond(get_test("turnip.sell.success", user_lang))
         await ctx.respond(f"Successfully sold {amt} turnips for {earnings}")
 
 
