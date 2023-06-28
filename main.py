@@ -54,11 +54,17 @@ async def new_player(user):
         db.commit()
 
 
-def time_now():
-    return datetime.now(tz=timezone("Europe/Paris"))
+def time_now(tz: str = "Europe/Paris"):
+    """
+        Return current time
+    """
+    return datetime.now(tz=timezone(tz))
 
 
 def get_parameter(param):
+    """
+        Get config parameters
+    """
     with open("json/config.json", "r", encoding="utf-8") as config_file:
         config = json.load(config_file)
 
@@ -78,7 +84,31 @@ def get_parameter(param):
         return items
 
 
+def var_set(param, value):
+    """
+        Allow to edit config parameters
+    """
+    with open("json/config.json", "r", encoding="utf-8") as config_file:
+        config = json.load(config_file)
+
+    if isinstance(param, str):
+        config[param] = value
+
+    elif isinstance(param, list):
+        for i in range(len(param)):
+            config[param[i]] = value[i]
+
+    else:
+        raise Exception("Invalid param type")
+
+    with open("json.config.json", "w", encoding="utf-8") as config_file:
+        json.dump(config, config_file, indent=2)
+
+
 def get_text(reference: str, lang: str):
+    """
+        Used to get the corresponding text in language asked
+    """
     # make it open the corresponding file and return the associated text (return reference if error)
     #   if lang == "", open english file
     return reference
