@@ -1,18 +1,15 @@
 import discord
 from discord import Embed, Color, TextChannel, Message, ApplicationContext, option, Role, User, Status, \
     AutocompleteContext, OptionChoice, Guild
-from discord.ext import commands, tasks
+from discord.ext import commands
 from discord.commands import SlashCommandGroup
 from discord.ui import InputText, Modal, View
-from discord.ext.commands.errors import GuildNotFound
 
 import json
-from typing import Union
-from random import randint
-from datetime import datetime, date
 
-from main import db, get_parameter, time_now, MyBot, in_database
+from main import db, get_parameter, MyBot, in_database
 from custom_views import DeleteShopItemView
+from custom_errors import CommandDisabled
 
 
 curLang = db.cursor(buffered=True)      # cursor used to get the language setting in all the commands
@@ -31,7 +28,7 @@ def get_all_config_var_name():
     return list(config.keys())
 
 
-class AdminCog(commands.Cog):
+class Admin(commands.Cog):
 
     def __init__(self, bot_: MyBot):
         self.bot = bot_
@@ -40,7 +37,7 @@ class AdminCog(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         log_msg = "[COG] 'AdminCog' has been loaded"
-        self.bot.log_action(txt=log_msg)
+        self.bot.log_action(log_msg, self.bot.bot_logger)
 
     admin_group = SlashCommandGroup("admin", "Admin commands")
     shop_sub = admin_group.create_subgroup("shop", "Shop management")
@@ -54,7 +51,7 @@ class AdminCog(commands.Cog):
     @admin_group.command(name="shutdown")
     @commands.is_owner()
     async def shutdown(self, ctx: ApplicationContext):
-        self.bot.log_action(txt=f"{ctx.author} stopped the bot")
+        self.bot.log_action(f"{ctx.author} stopped the bot", self.bot.bot_logger)
         await ctx.respond("Shutting down the bot !", ephemeral=True)
         await self.bot.close()
 
@@ -64,6 +61,7 @@ class AdminCog(commands.Cog):
     async def forced_daily_reset(self, ctx: ApplicationContext):
         curA.execute("UPDATE dailyrecord SET ready = 1")
         db.commit()
+        self.bot.log_action(f"[ADMIN] {ctx.author} forced the daily reset", self.bot.eco_logger)
         await ctx.respond(f"Done !", ephemeral=True)
 
     @admin_group.command(name="guilds")
@@ -71,13 +69,14 @@ class AdminCog(commands.Cog):
     async def admin_guilds(self, ctx: ApplicationContext):
         emb = Embed(color=0x36393F).set_author(name="Guild list")
         for guild in self.bot.guilds:
-            emb.add_field(name=f"{guild.name} ({guild.id})", value=f"owner: {guild.owner_id}")
+            emb.add_field(name=f"{guild.name} ({guild.id})", value=f"owner: {guild.owner_id}", inline=False)
         await ctx.respond(embed=emb, ephemeral=True)
 
     @admin_group.command(name="leave", description="Make the bot leave a specific server", guild_only=True)
     @commands.is_owner()
     async def admin_leave(self, ctx: ApplicationContext, guild: Guild):
         await guild.leave()
+        self.bot.log_action(f"[ADMIN] {ctx.author} made the bot leave the guild '{guild.name}' ({guild.id})", self.bot.admin_logger)
         await ctx.respond("Bot has been successfully left the guild !", ephemeral=True)
 
     @staticmethod
@@ -100,6 +99,7 @@ class AdminCog(commands.Cog):
     @option(name="amount", description="How many times you want to add this item in their inventory",
             min_value=1, max_value=100, default=1)
     async def admin_inv_add_item(self, ctx: ApplicationContext, user: User, object_id: str, amount: int):
+        # todo: code this
         await ctx.respond("end of command", ephemeral=True)
 
     @inv_sub.command(name="remove_item", description="Remove an item from someone's inventory", guild_only=True)
@@ -109,6 +109,7 @@ class AdminCog(commands.Cog):
     @option(name="amount", description="How many times you want to remove this item from their inventory",
             min_value=1, max_value=100, default=1)
     async def admin_inv_remove_item(self, ctx: ApplicationContext, user: User, object_id: str, amount: int):
+        # todo: code this
         await ctx.respond("end of command", ephemeral=True)
 
     @coins_sub.command(name="add", description="Add coins to someone's account", guild_only=True)
@@ -122,6 +123,7 @@ class AdminCog(commands.Cog):
         else:
             curA.execute(f"UPDATE users SET coins = coins + {amount} WHERE discordID = {user.id}")
             db.commit()
+            self.bot.log_action(f"[ADMIN] {user} has been credited {amount} coins", self.bot.eco_logger)
             await ctx.respond(f"{amount} coins has been added to {user.mention}'s account", ephemeral=True)
 
     @coins_sub.command(name="remove", description="Remove coins from someone's account", guild_only=True)
@@ -135,6 +137,7 @@ class AdminCog(commands.Cog):
         else:
             curA.execute(f"UPDATE users SET coins = coins - {amount} WHERE discordID = {user.id}")
             db.commit()
+            self.bot.log_action(f"[ADMIN] {user} has been debited {amount} coins", self.bot.eco_logger)
             await ctx.respond(f"{amount} coins has been removed to {user.mention}'s account", ephemeral=True)
 
     @coins_sub.command(name="set", description="Set the amount of coins of someone", guild_only=True)
@@ -148,6 +151,7 @@ class AdminCog(commands.Cog):
         else:
             curA.execute(f"UPDATE users SET coins = {amount} WHERE discordID = {user.id}")
             db.commit()
+            self.bot.log_action(f"[ADMIN] {user} has now {amount} coins", self.bot.eco_logger)
             await ctx.respond(f"{user.mention} now has {amount} coins.", ephemeral=True)
 
     @set_sub.command(name="bot-status")
@@ -170,7 +174,8 @@ class AdminCog(commands.Cog):
             "idle": Status.idle,
             "dnd": Status.dnd
         }
-        await self.client.change_presence(activity=dico[activity], status=dico[status])
+        await self.bot.change_presence(activity=dico[activity], status=dico[status])
+        self.bot.log_action(f"[ADMIN] {ctx.author} changed the bot status to '{activity} {text}{f' {url}' if url is not None else ''}'", self.bot.admin_logger)
         await ctx.respond("Status changed !", ephemeral=True)
 
     @set_sub.command(name="boost")
@@ -180,11 +185,16 @@ class AdminCog(commands.Cog):
     @option(name="user", description="User being affected", type=User, required=False)
     @commands.is_owner()
     async def admin_set_boost(self, ctx, value: int, target: str, role: Role = None, user: User = None):
+        # fixme : need whole rewrite to work with the current boost handling (sql db)
+        disabled = True
+        if disabled:
+            raise CommandDisabled
 
         if target == "everyone":
             await ctx.respond("Warning ! This will cancel all ongoing boost ! Send `confirm` if you want to perform "
                               "the command anyway", ephemeral=True)
             await self.var_set(self, ctx, 'boost', value)
+            self.bot.log_action(f"[ADMIN] Global boost value has been set to {value}", self.bot.eco_logger)
             await ctx.respond(f"Global income boost value has been set to `{value}`", ephemeral=True)
 
         elif target == "role":
@@ -203,6 +213,7 @@ class AdminCog(commands.Cog):
                 with open("json/boosts.json", "w", encoding="utf-8") as boost_file:
                     json.dump(boosts, boost_file, indent=2)
 
+                self.bot.log_action(f"[ADMIN] Boost value for role '{role}' has been set to {value}", self.bot.eco_logger)
                 await ctx.respond(f"Everyone that has {role} has now a boost of {value}!", ephemeral=True)
 
         elif target == "user":
@@ -221,6 +232,7 @@ class AdminCog(commands.Cog):
                 with open("json/boosts.json", "w", encoding="utf-8") as boost_file:
                     json.dump(boosts, boost_file, indent=2)
 
+                self.bot.log_action(f"[ADMIN] {user}'s boost value has been set to {value}", self.bot.eco_logger)
                 await ctx.respond("Done !", ephemeral=True)
 
         else:
@@ -236,7 +248,7 @@ class AdminCog(commands.Cog):
 
         old_id = config["suggest-channel"]
         config["suggest-channel"] = channel.id
-        log_channel = self.client.get_channel(config["config-update-channel"])
+        log_channel = self.bot.get_channel(config["config-update-channel"])
 
         with open("config.json", "w") as o:
             json.dump(config, o, indent=2)
@@ -246,6 +258,7 @@ class AdminCog(commands.Cog):
         log_em.set_footer(text=f"{ctx.author} - {ctx.author.id}")
         await log_channel.send(embed=log_em)
 
+        self.bot.log_action(f"[ADMIN] Suggestion channel has been changed to {channel.id}", self.bot.admin_logger)
         await ctx.respond("\✔️ Channel successfully updated !", ephemeral=True)
 
     @suggestion_sub.command(name="status", description="Change the status of a suggestion")
@@ -270,6 +283,7 @@ class AdminCog(commands.Cog):
         new_emb.set_footer(text=embed.footer.text, icon_url=embed.footer.icon_url)
         await message.edit(embed=new_emb)
 
+        self.bot.log_action(f"[ADMIN] Suggestion '{message.id}' is now '{status}'", self.bot.admin_logger)
         await ctx.respond(f"Suggestion status updated to {status}", ephemeral=True)
 
     @suggestion_sub.command(name="setup", description="Owner only")
@@ -277,7 +291,7 @@ class AdminCog(commands.Cog):
     @commands.is_owner()
     async def admin_suggest_setup(self, ctx, channel: TextChannel = None):
         channel_id = channel.id if channel else ctx.channel.id
-        new_channel = self.client.get_channel(channel_id)
+        new_channel = self.bot.get_channel(channel_id)
 
         with open("config.json", 'r', encoding='utf-8') as config_file:
             config = json.load(config_file)
@@ -287,7 +301,7 @@ class AdminCog(commands.Cog):
         with open("messages/suggest.txt", 'r', encoding='utf-8') as content:
             F = content.read()
 
-        suggest_channel = self.client.get_channel(suggest_channel_id)
+        suggest_channel = self.bot.get_channel(suggest_channel_id)
 
         class SuggestModal(Modal):
             def __init__(self, *args, **kwargs) -> None:
@@ -337,13 +351,15 @@ class AdminCog(commands.Cog):
         messageEmb.set_footer(text=f"『Suggestions』     『 TyranBot 』•『v{version}』")
 
         for message_id in old_ids[1]:
-            await self.client.http.delete_message(old_ids[0], message_id)
+            await self.bot.http.delete_message(old_ids[0], message_id)
 
         id1 = (await new_channel.send(embed=rulesEmb)).id
         id2 = (await new_channel.send(embed=messageEmb, view=SuggestionView())).id
         config["suggest-message-id"] = [channel_id, [id1, id2]]
         with open("config.json", "w") as o:
             json.dump(config, o, indent=2)
+
+        self.bot.log_action(f"[ADMIN] Suggestion module setup in channel {new_channel.id}", self.bot.admin_logger)
         await ctx.respond("Done", ephemeral=True)
 
     @tickets_sub.command(name="message")
@@ -368,8 +384,10 @@ class AdminCog(commands.Cog):
 
         if turnip_settings['can-buy']:
             await ctx.respond("Players can now buy turnips", ephemeral=True)
+            self.bot.log_action(f"[ADMIN] Turnips can now be bought", self.bot.eco_logger)
         else:
             await ctx.respond("Players can no longer buy turnips", ephemeral=True)
+            self.bot.log_action(f"[ADMIN] Turnips can no longer be bought", self.bot.eco_logger)
 
     @toggle_sub.command(name="turnip-sell")
     @commands.is_owner()
@@ -384,8 +402,10 @@ class AdminCog(commands.Cog):
 
         if turnip_settings['can-sell']:
             await ctx.respond("Players can now sell turnips", ephemeral=True)
+            self.bot.log_action(f"[ADMIN] Turnips can now be sold", self.bot.eco_logger)
         else:
             await ctx.respond("Players can no longer sell turnips", ephemeral=True)
+            self.bot.log_action(f"[ADMIN] Turnips can no longer be sold", self.bot.eco_logger)
 
     @shop_sub.command(name="add_item")
     @option(name="object_id", description="The unique descriptor of the item", max_length=16)
@@ -403,6 +423,10 @@ class AdminCog(commands.Cog):
                                   max_amount: int,
                                   ext_id: str,
                                   hidden: int):
+        disabled = True
+        if disabled:
+            raise CommandDisabled("Need update")
+
         curA.execute(f"SELECT objectID FROM objects WHERE objectID = '{object_id}'")
         rowA = curA.fetchone()
         if rowA is not None:
@@ -416,10 +440,11 @@ class AdminCog(commands.Cog):
         db.commit()
         self.shop_items = None
 
-        # todo: log action
+        self.bot.log_action(f"[ADMIN] New item '{object_id}' added to the shop", self.bot.eco_logger)
         await ctx.respond(f"end of command", ephemeral=True)
 
     async def shop_remove_item_autocomplete(self, ctx: AutocompleteContext):
+        obj_id = ctx.options['object_id']
         if self.shop_items is None:
             curA.execute("SELECT objectID FROM objects")
             items = []
@@ -428,7 +453,7 @@ class AdminCog(commands.Cog):
             self.shop_items = items
         else:
             items = self.shop_items
-        return items
+        return [item for item in items if obj_id in item]
 
     @shop_sub.command(name="remove_item")
     @option(name="object_id", description="The unique descriptor of the item you want to delete",
@@ -437,8 +462,8 @@ class AdminCog(commands.Cog):
     async def admin_shop_remove_item(self, ctx: ApplicationContext, object_id: str):
         self.shop_items = None
         view = DeleteShopItemView(object_id=object_id, bot=self.bot)
-        await ctx.respond("end of command", ephemeral=True, view=view)
+        await ctx.respond(ephemeral=True, view=view)
 
 
 def setup(bot_):
-    bot_.add_cog(AdminCog(bot_))
+    bot_.add_cog(Admin(bot_))
