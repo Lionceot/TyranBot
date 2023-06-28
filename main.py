@@ -13,7 +13,7 @@ import discord
 from discord import Embed, Color, Intents, Activity, ApplicationContext, Guild
 from discord.ext import commands, tasks
 from discord.errors import Forbidden
-from discord.ext.commands import errors, Context
+from discord.ext.commands import errors
 
 from custom_errors import NotEnoughMoney, UserIsBot, UnknownObject, MaxAmountReached, IncorrectBetValue, \
     InvalidTimeString, HowDidYouGetHere, CommandDisabled, CantBuyTurnip, CantSellTurnip
@@ -79,7 +79,7 @@ def get_parameter(param):
 
 
 def get_text(reference: str, lang: str):
-    # TODO : make it open the corresponding file and return the associated text (return reference if error)
+    # make it open the corresponding file and return the associated text (return reference if error)
     #   if lang == "", open english file
     return reference
 
@@ -215,8 +215,6 @@ class MyBot(commands.Bot):
         # self.logger.handlers = [LogtailHandler(source_token=getenv("LOGTAIL_TOKEN"))]
 
         for filename in listdir('./cogs'):
-            if "turnip" in filename:
-                continue
             if filename.endswith('.py'):
                 self.load_extension(f"cogs.{filename[:-3]}")
 
@@ -249,16 +247,6 @@ class MyBot(commands.Bot):
 
         await event_loop.start()
 
-        # await self.change_presence(activity=discord.Game(name="distribuer les cartes"), status=Status.dnd)
-
-        # print("-----------------------")
-        # for guild in self.guilds:
-        #     print(f"{guild.name} [id: {guild.id}, owner: {guild.owner}|{guild.owner_id}]")
-        # print("-----------------------")
-
-        # guild = self.get_guild(925802591894507541)
-        # await guild.leave()
-
     async def on_guild_join(self, guild: Guild):
         text = f"Guild {guild.name} joined. [id: {guild.id}, owner: {guild.owner}|{guild.owner_id}]"
         self.log_action(text, self.bot_logger)
@@ -269,13 +257,17 @@ class MyBot(commands.Bot):
         log_msg = f"{ctx.author} ({ctx.author.id}) used app_command '{ctx.command.qualified_name}' {args}"
         self.log_action(log_msg, self.cmd_logger)
 
-    # TODO: handle cooldown errors (not in application commands)
-    async def on_command_error(self, ctx: Context, exception: errors.CommandError):
+    async def on_command_error(self, ctx, exception: errors.CommandError):
         if exception in self.ignored_errors:
-            pass
+            return
 
-        elif isinstance(exception, errors.NotOwner):
-            emb = Embed(color=Color.red(), description="You are not my owner")
+        user = ctx.user
+        await new_player(user)
+        curA.execute(f"SELECT language FROM users WHERE discordID = {user.id}")
+        user_lang = curA.fetchone()[0]
+
+        if isinstance(exception, errors.NotOwner):
+            emb = Embed(color=Color.red(), description="This command is for bot owners only.")
             await ctx.reply(embed=emb, delete_after=5)
 
         elif isinstance(exception, errors.RoleNotFound):
@@ -297,10 +289,25 @@ class MyBot(commands.Bot):
             emb = Embed(color=Color.red(), description="Bots can't interact with the economy")
             await ctx.reply(embed=emb)
 
+        elif isinstance(exception, TimeoutError):
+            emb = Embed(color=Color.red(), description="You took too long. Command has been canceled.")
+            await ctx.reply(embed=emb, delete_after=10)
+
         else:
-            emb = Embed(color=Color.red(), description="unexpected error")
             self.log_action(f"Unhandled error occurred ({type(exception)}) : {exception}", self.cmd_logger, 50)
-            raise exception  # used when debugging
+            adm_emb = Embed(color=Color.red(), description=f"Error `{type(exception)}` cannot be handled. "
+                                                           f"Check console for more details.")
+            emb = Embed(color=Color.red(), description=get_text("commands.unexpected_error", user_lang))
+
+            if ctx.author.id in bot.owner_ids:
+                await ctx.reply(embed=adm_emb)
+
+            else:
+                await ctx.reply(embed=emb)
+                owner = self.get_user(444504367152889877)
+                await owner.send(embed=adm_emb)
+
+            raise exception
 
     async def on_application_command_error(self, ctx: ApplicationContext, exception: errors.CommandError):
         if exception in self.ignored_errors:
@@ -330,11 +337,11 @@ class MyBot(commands.Bot):
             emb = Embed(color=Color.red(), description=get_text("command.incorrect_bet", user_lang))
 
         elif isinstance(exception, errors.CommandOnCooldown):
-            # "lang: add time formatting for cooldown value
+            # add time formatting for cooldown value
             emb = Embed(color=Color.red(), description=get_text("command.on_cooldown", user_lang))
 
         elif isinstance(exception, InvalidTimeString):
-            # "lang: insert reason and raw input
+            # insert reason and raw input
             emb = Embed(color=Color.red(), description=get_text("command.invalid_string", user_lang))
 
         elif isinstance(exception, Forbidden):
