@@ -343,6 +343,12 @@ class MyBot(commands.Bot):
         elif isinstance(exception, HowDidYouGetHere):
             emb = Embed(color=Color.fuchsia(),  description=get_text("command.howdidyougethere", user_lang))
 
+        elif isinstance(exception, CantBuyTurnip):
+            emb = Embed(color=Color.fuchsia(),  description=get_text("turnip.cantbuy", user_lang))
+
+        elif isinstance(exception, CantSellTurnip):
+            emb = Embed(color=Color.fuchsia(),  description=get_text("turnip.cantsell", user_lang))
+
         elif isinstance(exception, CommandDisabled):
             # emb = Embed(color=Color.fuchsia(),  description=get_text("command.disabled", user_lang))
             emb = Embed(color=Color.fuchsia(), description=f"Command disabled ({exception.reason})")
