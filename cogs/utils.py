@@ -1,4 +1,4 @@
-from discord import Embed, Color, ApplicationContext, Forbidden
+from discord import Embed, Color, ApplicationContext, Forbidden, option, User
 from discord.ext import commands
 
 import json
@@ -20,7 +20,7 @@ class Utils(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         log_msg = "[COG] 'UtilsCog' has been loaded"
-        self.bot.log_action(txt=log_msg)
+        self.bot.log_action(log_msg, self.bot.bot_logger)
 
     @commands.slash_command(name="redeem")
     async def redeem(self, ctx: ApplicationContext, code: str):
@@ -48,6 +48,7 @@ class Utils(commands.Cog):
                         description=f"You successfully redeemed the code `{code}`.\nYou received {extra} coins.")
             emb.set_footer(text=f"『Redeem』     『TyranBot』•『{get_parameter('version')}』")
             await ctx.respond(embed=emb, ephemeral=True)
+            self.bot.log_action(f"[ECO] {user} got {extra} coins with code {code}", self.bot.eco_logger)
 
         elif effect == "DM":
             try:
@@ -145,6 +146,24 @@ class Utils(commands.Cog):
         emb.set_footer(text=f"『About』     『TyranBot』•『{get_parameter('version')}』")
 
         await ctx.respond(embed=emb, ephemeral=True)
+
+    @commands.slash_command(name="avatar")
+    @option(name="user")
+    async def avatar(self, ctx: ApplicationContext, user: User = None):
+        if user is None:
+            user = ctx.author
+        await ctx.respond(user.display_avatar, ephemeral=True)
+
+    @commands.slash_command(name="banner")
+    @option(name="user")
+    async def banner(self, ctx: ApplicationContext, user: User = None):
+        if user is None:
+            user = ctx.author
+        banner = user.banner
+        if banner is None:
+            await ctx.respond(f"{user.mention} doesn't have a banner")
+        else:
+            await ctx.respond(user.banner, ephemeral=True)
 
 
 def setup(bot_):
