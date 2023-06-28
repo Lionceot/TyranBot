@@ -92,6 +92,7 @@ class DeleteShopItemConfirm(Button):
         db.commit()
         self.bot.log_action(f"Item {self.object_id} deleted by {interaction.user} ({interaction.user.id})")
         await interaction.response.send_message("Item deleted !", ephemeral=True)
+        self.bot.log_action(f"[ADMIN] Item '{self.object_id}' was removed from the shop", self.bot.eco_logger)
         await self.view.message.delete()
 
 
