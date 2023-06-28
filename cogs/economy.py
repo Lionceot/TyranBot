@@ -185,7 +185,7 @@ class Economy(commands.Cog):
         user_lang = row[4]
 
         if ready == 0:
-            em = Embed(color=Color.red(), description=get_text("daily.already_done", user_lang))  # "lang
+            em = Embed(color=Color.red(), description=get_text("daily.already_done", user_lang))
             await ctx.respond(embed=em, ephemeral=True)
             return
 
@@ -216,7 +216,7 @@ class Economy(commands.Cog):
 
         currency_logo = get_parameter('currency-logo')
 
-        response_text = get_text("daily.claim", user_lang)  # "lang
+        response_text = get_text("daily.claim", user_lang)
         # Replace placeholders by variables values
         # Replace placeholders by variables values
 
@@ -240,7 +240,7 @@ class Economy(commands.Cog):
 
         if nbDaily < 7:
             response_text = get_text("bonus.not_ready", user_lang)
-            # response_text.replace("%nbDaily%", nbDaily) "lang
+            # response_text.replace("%nbDaily%", nbDaily)
             await ctx.respond(response_text, ephemeral=True)
 
         else:
@@ -250,7 +250,7 @@ class Economy(commands.Cog):
             db.commit()
 
             response_text = get_text("bonus.success", user_lang)
-            # response_text = response_text.replace("%amount%", f"{earnings} {get_parameter('currency-logo')}") "lang
+            # response_text = response_text.replace("%amount%", f"{earnings} {get_parameter('currency-logo')}")
             await ctx.respond(response_text)
 
     @commands.slash_command(name="work", description="Récupérer votre salaire toutes les 3h.")
@@ -269,7 +269,7 @@ class Economy(commands.Cog):
     @commands.slash_command(name="shop", description="Show the available things to buy")
     @commands.guild_only()
     @option(name="category", description="What section are you looking for ?", choices=["ranks", "colors", "perks"])
-    async def shop(self, ctx: ApplicationContext, category: str = "home"):  # "lang
+    async def shop(self, ctx: ApplicationContext, category: str = "home"):
         user = ctx.author
         await new_player(user)
 
@@ -421,7 +421,7 @@ class Economy(commands.Cog):
         db.commit()
 
         response_text = get_text("buy.success", user_lang)
-        # "lang
+
         # response_text = response_text.replace("%item_name%", get_text(f"items.{item_id}.name", user_lang))
         # response_text = response_text.replace("%amount%", quantity)
 
@@ -651,7 +651,6 @@ class Economy(commands.Cog):
             curB.execute(f"UPDATE users SET coins = {money - amount} WHERE discordID = {sender.id}")
             curC.execute(f"UPDATE users SET coins = coins + {amount} WHERE discordID = {receiver.id}")
             db.commit()
-            # "lang
             response_text = get_text("pay.success", user_lang)
             # response_text = response_text.replace("%amount%", f"{amount} {get_parameter('currency-logo')}")
             # response_text = response_text.replace("%receiver%", receiver.mention)
@@ -682,7 +681,7 @@ class Economy(commands.Cog):
         else:
             bet = 0
 
-        await ctx.respond(get_text("dice.start", user_lang))  # "lang
+        await ctx.respond(get_text("dice.start", user_lang))
 
         currency_logo = get_parameter('currency-logo')
         j1, j2 = randint(1, 6), randint(1, 6)
@@ -811,7 +810,7 @@ class Economy(commands.Cog):
 
         elif bet:
             if lost:
-                await ctx.send(get_text("guess.lost", user_lang))  # "lang
+                await ctx.send(get_text("guess.lost", user_lang))
                 curB.execute(f"UPDATE users SET coins = coins-{bet} WHERE discordID = {user.id}")
                 curC.execute(f"UPDATE stats SET guessPlayed=guessPlayed+1, coinsBetInGames=coinsBetInGames+{bet}, "
                              f"coinsLostInGames=coinsLostInGames+{bet} WHERE discordID = {user.id}")
@@ -827,7 +826,7 @@ class Economy(commands.Cog):
                 }
                 reward = bet * reward_dict[attempts] * get_boost(user, "coins")
 
-                await ctx.send(get_text("guess.win", user_lang))  # "lang
+                await ctx.send(get_text("guess.win", user_lang))
 
                 curB.execute(f"UPDATE users SET coins = coins+{reward} WHERE discordID = {user.id}")
                 curC.execute(f"UPDATE stats SET guessPlayed=guessPlayed+1, guessWon=guessWon+1, "
@@ -836,7 +835,7 @@ class Economy(commands.Cog):
 
         else:
             if lost:
-                await ctx.send(get_text("guess.no_bet.lost", user_lang))  # "lang
+                await ctx.send(get_text("guess.no_bet.lost", user_lang))
                 curB.execute(f"UPDATE stats SET guessPlayed=guessPlayed+1, WHERE discordID = {user.id}")
 
             else:
@@ -864,7 +863,7 @@ class Economy(commands.Cog):
 
         await ctx.respond(get_text("coinflip.start", user_lang))
         await asyncio.sleep(1.5)
-        await ctx.send(get_text("coinflip.result", user_lang))  # "lang
+        await ctx.send(get_text("coinflip.result", user_lang))
         await asyncio.sleep(1)
 
         if bet:
@@ -962,9 +961,9 @@ class Economy(commands.Cog):
         else:
             raise UnknownSign
 
-        await ctx.respond(get_text("rps.player_play", user_lang))  # "lang
+        await ctx.respond(get_text("rps.player_play", user_lang))
         await asyncio.sleep(1.5)
-        await ctx.send(get_text("rps.bot_play", user_lang))  # "lang
+        await ctx.send(get_text("rps.bot_play", user_lang))
         await asyncio.sleep(1.5)
 
         if bet:
@@ -972,29 +971,29 @@ class Economy(commands.Cog):
                 curB.execute(f"UPDATE users SET coins = coins - {bet} WHERE discordID = {user.id}")
                 curC.execute(f"UPDATE stats SET rpsPlayed=rpsPlayed+1, coinsBetInGames=coinsBetInGames+{bet}, "
                              f"coinsLostInGames=coinsLostInGames+{bet} WHERE discordID={user.id}")
-                await ctx.send(get_text("rps.lose", user_lang))  # "lang
+                await ctx.send(get_text("rps.lose", user_lang))
             elif score == 1:
                 earnings = bet * get_parameter("global_boost") * get_boost(user, "coins")
                 curB.execute(f"UPDATE users SET coins = coins + {earnings} WHERE discordID = {user.id}")
                 curC.execute(
                     f"UPDATE stats SET rpsPlayed=rpsPlayed+1, rpsWon=rpsWon+1, coinsBetInGames=coinsBetInGames+{bet},"
                     f"coinsWonInGames=coinsWonInGames+{earnings} WHERE discordID={user.id}")
-                await ctx.send(get_text("rps.win", user_lang))  # "lang
+                await ctx.send(get_text("rps.win", user_lang))
             else:
                 curC.execute(f"UPDATE stats SET rpsPlayed=rpsPlayed+1, coinsBetInGames=coinsBetInGames+{bet} "
                              f"WHERE discordID={user.id}")
-                await ctx.send(get_text("rps.draw", user_lang))  # "lang
+                await ctx.send(get_text("rps.draw", user_lang))
 
         else:
             if score == 0:
                 curB.execute(f"UPDATE stats SET rpsPlayed=rpsPlayed+1 WHERE discordID={user.id}")
-                await ctx.send(get_text("rps.no_bet.lose", user_lang))  # "lang
+                await ctx.send(get_text("rps.no_bet.lose", user_lang))
             elif score == 1:
                 curB.execute(f"UPDATE stats SET rpsPlayed=rpsPlayed+1, rpsWon=rpsWon+1 WHERE discordID={user.id}")
-                await ctx.send(get_text("rps.no_bet.win", user_lang))  # "lang
+                await ctx.send(get_text("rps.no_bet.win", user_lang))
             else:
                 curB.execute(f"UPDATE stats SET rpsPlayed=rpsPlayed+1 WHERE discordID={user.id}")
-                await ctx.send(get_text("rps.no_bet.draw", user_lang))  # "lang
+                await ctx.send(get_text("rps.no_bet.draw", user_lang))
         db.commit()
 
     @staticmethod
