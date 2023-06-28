@@ -101,8 +101,21 @@ def var_set(param, value):
     else:
         raise Exception("Invalid param type")
 
-    with open("json.config.json", "w", encoding="utf-8") as config_file:
+    with open("json/config.json", "w", encoding="utf-8") as config_file:
         json.dump(config, config_file, indent=2)
+
+
+def add_event(timestamp: int, data: dict):
+    with open("json/events.json", "r", encoding="utf-8") as event_file:
+        events = json.load(event_file)
+
+    if timestamp in events:
+        events[timestamp].append(data)
+    else:
+        events[timestamp] = [data]
+
+    with open("json/config.json", "w", encoding="utf-8") as event_file:
+        json.dump(events, event_file, indent=2)
 
 
 def get_text(reference: str, lang: str):
