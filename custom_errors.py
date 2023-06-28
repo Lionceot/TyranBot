@@ -51,3 +51,24 @@ class CodeLimitReached(CommandError):
 
 class UnexpectedError(CommandError):
     pass
+
+
+class CommandDisabled(CommandError):
+    def __init__(self, reason: str = None):
+        self.reason = reason
+
+
+class TurnipFileError(BaseException):
+    pass
+
+
+class TurnipPatternError(BaseException):
+    pass
+
+
+class CantBuyTurnip(CommandError):
+    pass
+
+
+class CantSellTurnip(CommandError):
+    pass
