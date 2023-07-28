@@ -37,8 +37,11 @@ def get_inventory(user):
 def get_boost(user: User, boost_type: str = "coins"):
     if not in_database(user):
         return 1
+
+    now = round(time_now().timestamp())
+
     curA.execute(f"SELECT multiplier FROM active_boosts WHERE discordID = {user.id} and boostType = '{boost_type}' "
-                 f"ORDER BY multiplier DESC LIMIT 1")
+                 f"and endTimestamp > {now} ORDER BY multiplier DESC LIMIT 1")
     rowA = curA.fetchone()
     if rowA is not None:
         return rowA[0]
@@ -58,15 +61,33 @@ class Economy(commands.Cog):
     async def on_ready(self):
         log_msg = "[COG] 'EconomyCog' has been loaded"
         self.bot.log_action(log_msg, self.bot.bot_logger)
+        self.daily_loop.start()
 
     @tasks.loop(seconds=1)
     async def daily_loop(self):
-        now = time_now().strftime("%H:%M:%S")
+        now = time_now()
+        now_str = now.strftime("%H:%M:%S")
 
-        if now == "00:00:00":
+        if now_str == "00:00:00":
+            # Allow everyone to use /daily and update their current streak
             curA.execute("UPDATE dailyrecord SET streak = 0 WHERE claimed = 0")
             curB.execute("UPDATE dailyrecord SET ready = 1, claimed = 0")
+            self.bot.log_action(f"[ECO] Daily bonus available", self.bot.eco_logger)
+
+            # Clear expired boosts
+            curC.execute(f"DELETE FROM active_boosts WHERE endTimestamp < {round(now.timestamp())}")
+            self.bot.log_action(f"[ECO] Expired boost removed from database", self.bot.eco_logger)
+
+            # Apply changes
             db.commit()
+
+    @daily_loop.before_loop
+    async def before_daily_loop(self):
+        self.bot.log_action("[LOOP] Daily loop has started.", self.bot.bot_logger)
+
+    @daily_loop.after_loop
+    async def after_daily_loop(self):
+        self.bot.log_action("[LOOP] Daily loop has stopped.", self.bot.bot_logger)
 
     @commands.slash_command(name="coins", description="Indique la quantité d'argent d'un utilisateur.",
                             brief="Show a user's amount of money")
@@ -204,7 +225,7 @@ class Economy(commands.Cog):
         else:
             streak_factor = 1
 
-        boost = get_parameter("global_boost") * get_boost(user, "coins")
+        boost = get_parameter("global_coins_boost") * get_boost(user, "coins")
         earnings = int(round(randint(50, 120) * streak_factor) * boost)
         nbDaily = min(7, row[2] + 1)
 
@@ -216,7 +237,7 @@ class Economy(commands.Cog):
 
         currency_logo = get_parameter('currency-logo')
 
-        response_text = get_text("daily.claim", user_lang)
+        response_text = get_text(f"daily.claim {earnings} ({boost})", user_lang)
         # Replace placeholders by variables values
         # Replace placeholders by variables values
 
@@ -244,7 +265,7 @@ class Economy(commands.Cog):
             await ctx.respond(response_text, ephemeral=True)
 
         else:
-            earnings = randint(50, 120) * get_parameter("global_boost") * get_boost(user, "coins")
+            earnings = randint(50, 120) * get_parameter("global_coins_boost") * get_boost(user, "coins")
             curB.execute(f"UPDATE users AS u, dailyrecord AS d SET u.coins = u.coins + {earnings}, d.nbDaily = 0 "
                          f"WHERE u.discordID = {user.id} and d.discordID = {user.id} ")
             db.commit()
@@ -260,7 +281,7 @@ class Economy(commands.Cog):
         user = ctx.author
         await new_player(user)
 
-        earnings = randint(100, 200) * get_parameter("global_boost") * get_boost(user, "coins")
+        earnings = randint(100, 200) * get_parameter("global_coins_boost") * get_boost(user, "coins")
         curA.execute(f"UPDATE users SET coins = coins + {earnings} WHERE discordID = {user.id}")
         db.commit()
 
@@ -687,7 +708,7 @@ class Economy(commands.Cog):
         j1, j2 = randint(1, 6), randint(1, 6)
 
         if j1 + j2 == 12:
-            earnings = bet * 3 * get_parameter("global_boost") * get_boost(user, "coins")
+            earnings = bet * 3 * get_parameter("global_coins_boost") * get_boost(user, "coins")
             text_1 = get_text("dice.double_6.part_1", user_lang)
             text_2 = get_text("dice.double_6.part_2", user_lang)
             text_3 = get_text("dice.win", user_lang)
@@ -710,9 +731,9 @@ class Economy(commands.Cog):
 
             elif j1 + j2 > b1 + b2:
                 if j1 == j2:
-                    earnings = bet * 2 * get_parameter("global_boost") * get_boost(user, "coins")
+                    earnings = bet * 2 * get_parameter("global_coins_boost") * get_boost(user, "coins")
                 else:
-                    earnings = bet * get_parameter("global_boost") * get_boost(user, "coins")
+                    earnings = bet * get_parameter("global_coins_boost") * get_boost(user, "coins")
 
                 text_3 = get_text("dice.win", user_lang)
                 curB.execute(f"UPDATE stats SET dicePlayed=dicePlayed+1, diceWon=diceWon+1, "
@@ -882,7 +903,7 @@ class Economy(commands.Cog):
                 await ctx.send(get_text("coinflip.lose", user_lang))
 
             else:
-                earnings = bet * get_parameter('global_boost') * get_boost(user, "coins")
+                earnings = bet * get_parameter('global_coins_boost') * get_boost(user, "coins")
                 curB.execute(f"UPDATE users SET coins = coins + {earnings} WHERE discordID = {user.id}")
                 curC.execute(
                     f"UPDATE stats SET coinflipPlayed=coinflipPlayed+1, coinflipWon=coinflipWon+1, "
@@ -973,7 +994,7 @@ class Economy(commands.Cog):
                              f"coinsLostInGames=coinsLostInGames+{bet} WHERE discordID={user.id}")
                 await ctx.send(get_text("rps.lose", user_lang))
             elif score == 1:
-                earnings = bet * get_parameter("global_boost") * get_boost(user, "coins")
+                earnings = bet * get_parameter("global_coins_boost") * get_boost(user, "coins")
                 curB.execute(f"UPDATE users SET coins = coins + {earnings} WHERE discordID = {user.id}")
                 curC.execute(
                     f"UPDATE stats SET rpsPlayed=rpsPlayed+1, rpsWon=rpsWon+1, coinsBetInGames=coinsBetInGames+{bet},"
