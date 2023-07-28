@@ -7,7 +7,7 @@ from discord.ui import InputText, Modal, View
 
 import json
 
-from main import db, get_parameter, MyBot, in_database
+from main import db, get_parameter, MyBot, in_database, var_set, add_event, time_now
 from custom_views import DeleteShopItemView
 from custom_errors import CommandDisabled
 
@@ -61,7 +61,7 @@ class Admin(commands.Cog):
     async def forced_daily_reset(self, ctx: ApplicationContext):
         curA.execute("UPDATE dailyrecord SET ready = 1")
         db.commit()
-        self.bot.log_action(f"[ADMIN] {ctx.author} forced the daily reset", self.bot.eco_logger)
+        self.bot.log_action(f"[ECO] Daily bonus available (forced by {ctx.author})", self.bot.eco_logger)
         await ctx.respond(f"Done !", ephemeral=True)
 
     @admin_group.command(name="guilds")
@@ -180,40 +180,37 @@ class Admin(commands.Cog):
 
     @set_sub.command(name="boost")
     @option(name="value", description="boost's value", type=int)
+    @option(name="boost_type", description="What kind of boost is it", choices=["coins"])
     @option(name="target", choices=["everyone", "role", "user"])
+    @option(name="length", description="How long the boost last (in seconds)")
     @option(name="role", description="Role being affected", type=Role, required=False)
     @option(name="user", description="User being affected", type=User, required=False)
     @commands.is_owner()
-    async def admin_set_boost(self, ctx, value: int, target: str, role: Role = None, user: User = None):
-        # fixme : need whole rewrite to work with the current boost handling (sql db)
-        disabled = True
-        if disabled:
-            raise CommandDisabled
+    async def admin_set_boost(self, ctx: ApplicationContext, value: int, boost_type: str, target: str, length: int, role: Role = None, user: User = None):
+        end = round(time_now().timestamp()) + length
 
         if target == "everyone":
-            await ctx.respond("Warning ! This will cancel all ongoing boost ! Send `confirm` if you want to perform "
-                              "the command anyway", ephemeral=True)
-            await self.var_set(self, ctx, 'boost', value)
-            self.bot.log_action(f"[ADMIN] Global boost value has been set to {value}", self.bot.eco_logger)
+            var_set('global_coins_boost', value)
+            self.bot.log_action(f"[ADMIN] Global boost value has been set to {value} for {length}s", self.bot.eco_logger)
             await ctx.respond(f"Global income boost value has been set to `{value}`", ephemeral=True)
+
+            add_event(end, {
+                "type": f"{boost_type}-boost",
+                "value": 1
+            })
 
         elif target == "role":
             if not role:
                 await ctx.respond("Please specify a role", ephemeral=True)
             else:
-                users = [member for member in role.members]
+                users_id = [member.id for member in role.members]
+                users_values = ', '.join([f"({u_id}, {end}, {value}, '{boost_type}')" for u_id in users_id])
 
-                with open("json/boosts.json", 'r', encoding='utf-8') as boost_file:
-                    boosts = json.load(boost_file)
-                for user in users:
-                    if str(user.id) in boosts:
-                        boosts[str(user.id)]['value'] = value
-                    else:
-                        boosts[str(user.id)] = {"value": value, "end-time": 999999999}
-                with open("json/boosts.json", "w", encoding="utf-8") as boost_file:
-                    json.dump(boosts, boost_file, indent=2)
+                curA.execute(f"INSERT INTO active_boosts (discordID, endTimestamp, multiplier, boostType) VALUES "
+                             f"{users_values}")
+                db.commit()
 
-                self.bot.log_action(f"[ADMIN] Boost value for role '{role}' has been set to {value}", self.bot.eco_logger)
+                self.bot.log_action(f"[ADMIN] Boost value for role '{role}' has been multiplied by {value} for {length}s", self.bot.eco_logger)
                 await ctx.respond(f"Everyone that has {role} has now a boost of {value}!", ephemeral=True)
 
         elif target == "user":
@@ -221,23 +218,17 @@ class Admin(commands.Cog):
                 await ctx.respond("Please specify a user", ephemeral=True)
 
             else:
-                with open("json/boosts.json", 'r', encoding='utf-8') as boost_file:
-                    boosts = json.load(boost_file)
+                curA.execute(f"INSERT INTO active_boosts (discordID, endTimestamp, multiplier, boostType) VALUES "
+                             f"({user.id}, {end}, {value}, '{boost_type}')")
+                db.commit()
 
-                if str(user.id) in boosts:
-                    boosts[str(user.id)]['value'] = value
-                else:
-                    boosts[str(user.id)] = {"value": value, "end-time": 999999999}
-
-                with open("json/boosts.json", "w", encoding="utf-8") as boost_file:
-                    json.dump(boosts, boost_file, indent=2)
-
-                self.bot.log_action(f"[ADMIN] {user}'s boost value has been set to {value}", self.bot.eco_logger)
+                self.bot.log_action(f"[ADMIN] {user}'s boost value has been multiplied by {value} for {length}s", self.bot.eco_logger)
                 await ctx.respond("Done !", ephemeral=True)
 
         else:
             await ctx.respond(f"That's an unexpected behavior please contact {get_parameter('emergency-contact')}",
                               ephemeral=True)
+            self.bot.log_action(f"[CMD] Unexpected behavior in '{ctx.command.qualified_name}' raise by {ctx.author}", self.bot.cmd_logger, 40)
 
     @suggestion_sub.command(name="channel", description="Define a new channel where suggestions will be sent")
     @option(name="channel", description="The channel", type=TextChannel)
