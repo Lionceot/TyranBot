@@ -1499,7 +1499,7 @@ class Turnip(commands.Cog):
         elif pattern == "2":
             base_rate = randint(85, 90)
             prices = []
-            for i in range(11):
+            for i in range(12):
                 prices.append(round(base_price * base_rate / 100))
                 base_rate -= randint(3, 5)
 
