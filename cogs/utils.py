@@ -31,19 +31,39 @@ class Utils(commands.Cog):
             raise UnknownCode
 
         user = ctx.author
+        user_id_str = str(user.id)
+
+        now = time_now()
 
         code_data = codes[code]
         effect = code_data['effect']
         extra = code_data['extra']
-        usage_limit = code_data['usage_limit']
-        usage_count = code_data['usage_count']
+        usage_limit = code_data['usage_limit'][0]
+        usage_mode = code_data['usage_limit'][1]
+        used_by = code_data['used_by']
 
-        if not (usage_count < usage_limit or usage_limit == -1):
-            raise CodeLimitReached
+        if usage_limit == 0:  # Allow the creation of codes that will be available later or are disabled
+            raise UnknownCode
+
+        if usage_mode == "each":
+            if user_id_str in used_by:
+                if len(used_by[user_id_str]) >= usage_limit != -1:
+                    raise CodeLimitReached
+
+                else:
+                    used_by[user_id_str].append(round(now.timestamp()))
+            else:
+                used_by[user_id_str] = [round(now.timestamp())]
+
+        else:
+            if user_id_str in used_by:
+                raise CodeLimitReached
+
+            else:
+                used_by[user_id_str] = [round(now.timestamp())]
 
         if effect == "money":
             curA.execute(f"UPDATE users SET coins = coins + {extra} WHERE discordID = {user.id}")
-            db.commit()
             emb = Embed(color=Color.green(),
                         description=f"You successfully redeemed the code `{code}`.\nYou received {extra} coins.")
             emb.set_footer(text=f"『Redeem』     『TyranBot』•『{get_parameter('version')}』")
@@ -75,7 +95,7 @@ class Utils(commands.Cog):
 
         elif effect == "ping":
             channel = self.bot.get_channel(extra[0])
-            emb = Embed(color=Color.dark_teal(), timestamp=time_now(),
+            emb = Embed(color=Color.dark_teal(), timestamp=now,
                         description=f"{user.mention} {extra[1]}")
             emb.set_footer(text=f"Code • {code}")
             await channel.send("@everyone", embed=emb)
@@ -88,7 +108,8 @@ class Utils(commands.Cog):
         else:
             raise UnexpectedError
 
-        codes[code]['usage_count'] += 1
+        # Save changes if there was no error
+        db.commit()
         with open("json/codes.json", "w", encoding="utf-8") as code_file:
             json.dump(codes, code_file, indent=2)
 

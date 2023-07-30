@@ -2,14 +2,47 @@
   "money": {
     "effect": "money",
     "extra": 50,
-    "usage_limit": -1,
-    "usage_count": 3
+    "usage_limit": [
+      -1,
+      "all"
+    ],
+    "used_by": {
+      "444504367152889877": [
+        1690635568,
+        1690635588
+      ]
+    }
+  },
+  "once": {
+    "effect": "DM",
+    "extra": "super secret message",
+    "usage_limit": [
+      1,
+      "all"
+    ],
+    "used_by": {}
+  },
+  "once_each": {
+    "effect": "DM",
+    "extra": "super secret message",
+    "usage_limit": [
+      1,
+      "each"
+    ],
+    "used_by": {}
   },
   "dm": {
     "effect": "DM",
     "extra": "super secret message",
-    "usage_limit": -1,
-    "usage_count": 2
+    "usage_limit": [
+      -1,
+      "all"
+    ],
+    "used_by": {
+      "444504367152889877": [
+        1690636432
+      ]
+    }
   },
   "role": {
     "effect": "role",
@@ -17,8 +50,11 @@
       779602390415835156,
       1089902768514400286
     ],
-    "usage_limit": -1,
-    "usage_count": 2
+    "usage_limit": [
+      -1,
+      "all"
+    ],
+    "used_by": {}
   },
   "ping": {
     "effect": "ping",
@@ -26,7 +62,10 @@
       1003231666820616212,
       "found treasure n\u00b01"
     ],
-    "usage_limit": -1,
-    "usage_count": 6
+    "usage_limit": [
+      -1,
+      "all"
+    ],
+    "used_by": {}
   }
 }
