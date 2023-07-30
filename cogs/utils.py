@@ -110,6 +110,7 @@ class Utils(commands.Cog):
 
         # Save changes if there was no error
         db.commit()
+        codes[code]['usage_count'] += 1
         with open("json/codes.json", "w", encoding="utf-8") as code_file:
             json.dump(codes, code_file, indent=2)
 
