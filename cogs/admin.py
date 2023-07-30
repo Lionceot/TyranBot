@@ -455,6 +455,30 @@ class Admin(commands.Cog):
         view = DeleteShopItemView(object_id=object_id, bot=self.bot)
         await ctx.respond(ephemeral=True, view=view)
 
+    @admin_group.command(name="codes")
+    @commands.is_owner()
+    async def admin_codes(self, ctx: ApplicationContext):
+        with open("json/codes.json", "r", encoding="utf-8") as code_file:
+            codes = json.load(code_file)
+
+        resume = []
+        for code in codes:
+            count = f"{codes[code]['usage_count']}/{codes[code]['usage_limit'][0]}"
+            resume.append(f"• {code}{(16 - len(code)) * ' '} : {count} {(10 - len(count)) * ' '} ({codes[code]['usage_limit'][1]})")
+
+        # create a page system
+        resume_text = ""
+        for line in resume:
+            if len(resume_text) + len(line) < 4000:
+                resume_text += line + "\n"
+
+        resume_text = "```py\n" + resume_text + "\n```"
+
+        codes_emb = Embed(color=0x2b2d31, description=resume_text)
+        codes_emb.set_author(name="Codes - Admin view")
+
+        await ctx.respond(embed=codes_emb)
+
 
 def setup(bot_):
     bot_.add_cog(Admin(bot_))
