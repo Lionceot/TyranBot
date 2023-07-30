@@ -1336,7 +1336,7 @@ class Turnip(commands.Cog):
         total_earned = rowB[2]
         total_spend = rowB[3]
 
-        lead_emb = Embed(color=0x61ad3c, title="Résumé de la semaine du 25/06/2023")
+        lead_emb = Embed(color=0x61ad3c, title=f"Résumé de la semaine du {'/'.join(reversed(start_date.split('-')))}")
 
         leaderboards_1 = {
             "PeppaCoins gagnés": most_earned,
@@ -1537,17 +1537,10 @@ class Turnip(commands.Cog):
     @commands.is_owner()
     async def turnip_debug(self, ctx: ApplicationContext):
         await ctx.defer()
-        """with open("json/turnip.json", 'r', encoding='utf-8') as turnip_file:
-            turnip_settings = json.load(turnip_file)
 
-        for _ in range(count):
-            pattern = self.new_pattern(turnip_settings['last-pattern'], turnip_settings['patterns-chances'])
-            durations = self.phases_duration(pattern)
-            base_price, final_prices = self.phases_prices(pattern, durations)
-            with open("test_result.txt", "a", encoding="utf-8") as result_file:
-                result_file.write(f"{pattern}, {base_price}, {final_prices}\n")"""
-
+        self.bot.log_action(f"[TURNIP] Starting new week reset. (forced)", self.bot.turnip_logger)
         await self.new_week(round(time_now().timestamp()))
+        self.bot.log_action(f"[TURNIP] New week reset finished.", self.bot.turnip_logger)
 
         await ctx.respond(f"EoC", ephemeral=True)
 
