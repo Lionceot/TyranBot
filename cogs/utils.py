@@ -41,8 +41,9 @@ class Utils(commands.Cog):
         usage_limit = code_data['usage_limit'][0]
         usage_mode = code_data['usage_limit'][1]
         used_by = code_data['used_by']
+        disabled = code_data['disabled']
 
-        if usage_limit == 0:  # Allow the creation of codes that will be available later or are disabled
+        if disabled:
             raise UnknownCode
 
         if usage_mode == "each":
