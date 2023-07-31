@@ -265,7 +265,7 @@ class Economy(commands.Cog):
             await ctx.respond(response_text, ephemeral=True)
 
         else:
-            earnings = randint(50, 120) * get_parameter("global_coins_boost") * get_boost(user, "coins")
+            earnings = 100 * get_parameter("global_coins_boost") * get_boost(user, "coins")
             curB.execute(f"UPDATE users AS u, dailyrecord AS d SET u.coins = u.coins + {earnings}, d.nbDaily = 0 "
                          f"WHERE u.discordID = {user.id} and d.discordID = {user.id} ")
             db.commit()
