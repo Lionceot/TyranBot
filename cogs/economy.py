@@ -10,11 +10,11 @@ from dotenv import load_dotenv
 from datetime import datetime, date
 
 
-from main import db, in_database, new_player, get_parameter, MyBot, time_now, get_text, key_with_lowest_value, \
-    sort_dict_by_value
+from main import MyBot, db, in_database, new_player
 from custom_errors import NotEnoughMoney, IncorrectBetValue, UnknownSign, UserIsBot, UnknownObject, MaxAmountReached, \
     HowDidYouGetHere, TurnipFileError, TurnipPatternError, CantBuyTurnip, CantSellTurnip
 from custom_views import PaymentView, ShopBrowserView
+from custom_functions import key_with_lowest_value, sort_dict_by_value, get_parameter, time_now, get_text
 
 load_dotenv()
 

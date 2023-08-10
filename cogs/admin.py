@@ -7,9 +7,10 @@ from discord.ui import InputText, Modal, View
 
 import json
 
-from main import db, get_parameter, MyBot, in_database, var_set, add_event, time_now
-from custom_views import DeleteShopItemView
+from main import db, MyBot, in_database
+from custom_views import DeleteShopItemView, AdminCodesView
 from custom_errors import CommandDisabled
+from custom_functions import add_event, get_parameter, var_set, time_now
 
 
 curLang = db.cursor(buffered=True)      # cursor used to get the language setting in all the commands
@@ -463,8 +464,11 @@ class Admin(commands.Cog):
 
         resume = []
         for code in codes:
+            start = f"• {code}{(16 - len(code)) * ' '} :"
             count = f"{codes[code]['usage_count']}/{codes[code]['usage_limit'][0]}"
-            resume.append(f"• {code}{(16 - len(code)) * ' '} : {count} {(10 - len(count)) * ' '} ({codes[code]['usage_limit'][1]})")
+            mode = f"({codes[code]['usage_limit'][1]})"
+            disabled = f"{(6 - len(mode)) * ' '}not" if codes[code]['disabled'] else ''
+            resume.append(f"{start} {count} {(10 - len(count)) * ' '} {mode} {disabled}")
 
         # create a page system
         resume_text = ""
@@ -477,7 +481,7 @@ class Admin(commands.Cog):
         codes_emb = Embed(color=0x2b2d31, description=resume_text)
         codes_emb.set_author(name="Codes - Admin view")
 
-        await ctx.respond(embed=codes_emb)
+        await ctx.respond(embed=codes_emb, view=AdminCodesView())
 
 
 def setup(bot_):

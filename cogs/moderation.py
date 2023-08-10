@@ -5,7 +5,8 @@ from discord.commands import SlashCommandGroup
 import json
 from datetime import timedelta
 
-from main import get_parameter, time_now, MyBot, string_to_time, time_to_string
+from main import MyBot
+from custom_functions import get_parameter, time_now, string_to_time, time_to_string
 
 
 class Moderation(commands.Cog):

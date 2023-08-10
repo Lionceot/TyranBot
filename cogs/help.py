@@ -1,12 +1,10 @@
-from discord import Embed, Color, TextChannel, ApplicationContext, option, User, Member
+from discord import Embed, Color, ApplicationContext
 from discord.ext import commands
 from discord.commands import SlashCommandGroup, UserCommand, MessageCommand, SlashCommand
 from discord.ext.commands import Command
 
-import json
-from datetime import timedelta
-
-from main import get_parameter, time_now, MyBot, string_to_time, time_to_string
+from main import MyBot
+from custom_functions import get_parameter
 
 
 class Help(commands.Cog):

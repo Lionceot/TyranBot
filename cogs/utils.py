@@ -3,8 +3,9 @@ from discord.ext import commands
 
 import json
 
-from main import get_parameter, MyBot, db, time_now
+from main import MyBot, db
 from custom_errors import CodeLimitReached, UnknownCode, UnexpectedError
+from custom_functions import get_parameter, time_now
 
 
 curA = db.cursor(buffered=True)
