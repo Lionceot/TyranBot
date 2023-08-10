@@ -167,7 +167,7 @@ class Economy(commands.Cog):
             try:
                 rowA = curA.fetchone()
                 user_id = rowA[0]
-                user_name = await self.bot.fetch_user(user_id)
+                user_name = (await self.bot.fetch_user(user_id)).display_name
                 money = rowA[1]
                 lbEmb.add_field(name=f":{medal_dict[place]}: {user_name}",
                                 value=f"{get_parameter('currency-logo')} {money}",
@@ -180,7 +180,7 @@ class Economy(commands.Cog):
             try:
                 rowA = curA.fetchone()
                 user_id = rowA[0]
-                user_name = await self.bot.fetch_user(user_id)
+                user_name = (await self.bot.fetch_user(user_id)).display_name
                 money = rowA[1]
                 lbEmb.add_field(name=f"{place} - {user_name}", value=f"{get_parameter('currency-logo')} {money}",
                                 inline=False)
@@ -1054,7 +1054,7 @@ class Economy(commands.Cog):
         currency_logo = get_parameter('currency-logo')
 
         statEmb = Embed(color=Color.blurple())
-        statEmb.set_author(name=f"{user}'s stats")
+        statEmb.set_author(name=f"{user.display_name}")
         statEmb.set_footer(text=f"『Stats』     『TyranBot』•『{get_parameter('version')}』")
         statEmb.add_field(
             name="Jeux",
@@ -1093,7 +1093,7 @@ class Economy(commands.Cog):
 
         await ctx.respond(embed=statEmb)
 
-    @commands.message_command(name="Author's stats")
+    @commands.message_command(name="Stats")
     async def mc_stats(self, ctx: ApplicationContext, message: Message):
         user = message.author
         if user.bot:
@@ -1104,7 +1104,7 @@ class Economy(commands.Cog):
         statEmb = self.get_stat_emb(user)
         await ctx.respond(embed=statEmb)
 
-    @commands.user_command(name="User's stats")
+    @commands.user_command(name="Stats")
     async def uc_stats(self, ctx: ApplicationContext, user: User):
         if user.bot:
             raise UserIsBot(user=user)
