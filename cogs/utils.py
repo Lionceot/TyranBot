@@ -1,4 +1,4 @@
-from discord import Embed, Color, ApplicationContext, Forbidden, option, User
+from discord import Embed, Color, ApplicationContext, Forbidden, option, User, Member
 from discord.ext import commands
 
 import json
@@ -194,6 +194,20 @@ class Utils(commands.Cog):
             await ctx.respond(f"{user.mention} doesn't have a banner")
         else:
             await ctx.respond(user.banner, ephemeral=True)
+
+    @commands.slash_command(name="nick")
+    @commands.guild_only()
+    @commands.check(is_disabled_check)
+    async def nick(self, ctx: ApplicationContext, name: str, user: Member = None):
+        if user is not None and ctx.author.guild_permissions.manage_nicknames:
+            pass
+        else:
+            user = ctx.author
+
+        old_name = user.display_name
+        await user.edit(nick=name)
+
+        await ctx.respond(f"Changed {user.mention} display name from `{old_name}` tp `{name}`", ephemeral=True)
 
 
 def setup(bot_):
