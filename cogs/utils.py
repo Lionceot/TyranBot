@@ -115,6 +115,7 @@ class Utils(commands.Cog):
         codes[code]['usage_count'] += 1
         with open("json/codes.json", "w", encoding="utf-8") as code_file:
             json.dump(codes, code_file, indent=2)
+        self.bot.log_action(f"[CODE] {user.name} redeemed code '{code}'", self.bot.code_logger)
 
     @commands.slash_command(name="server")
     async def server(self, ctx: ApplicationContext):

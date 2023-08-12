@@ -91,6 +91,7 @@ class MyBot(commands.Bot):
         self.mod_logger = logging.getLogger("MOD")
         self.eco_logger = logging.getLogger("ECO")
         self.turnip_logger = logging.getLogger("TNP")
+        self.code_logger = logging.getLogger("CODE")
 
         # self.logger.handlers = [LogtailHandler(source_token=getenv("LOGTAIL_TOKEN"))]
 
@@ -108,6 +109,7 @@ class MyBot(commands.Bot):
             self.mod_logger: "\033[0;34m",
             self.eco_logger: "\033[0;32m",
             self.turnip_logger: "\033[0;32m",
+            self.code_logger: "\033[1;35m",
             30: "\033[1;33m",
             40: "\033[1;31m",
             50: "\033[7m\033[1;31m"
@@ -289,8 +291,9 @@ async def event_loop():
     for timestamp in events:
         if timestamp <= now:
             for item in events[timestamp]:
+                item_type = item['type']
 
-                if item['type'] == 'tempmute':
+                if item_type == 'tempmute':
                     guild = bot.get_guild(item['guild'])
                     user = guild.get_member(item['user'])
                     mute_role = guild.get_role(get_parameter('mute_role'))
@@ -298,19 +301,29 @@ async def event_loop():
                     await user.remove_roles(mute_role, reason="End of sentence")
                     bot.log_action(f"[MOD] {user} has been un-muted (automatically)", bot.mod_logger)
 
-                elif item['type'] == 'tempban':
+                elif item_type == 'tempban':
                     guild = bot.get_guild(item['guild'])
                     user = guild.get_member(item['user'])
 
                     await user.unban(reason="End of sentence")
                     bot.log_action(f"[MOD] {user} has been un-banned (automatically)", bot.mod_logger)
 
-                elif item['type'] == "coins-boost":
+                elif item_type == "coins-boost":
                     var_set("global_coins_boost", item['value'])
                     bot.log_action(f"[ECO] Global boost value is now {item['value']}", bot.eco_logger)
 
+                elif item_type == "code-usage":
+                    code = item['code']
+                    limit = item['limit']
+                    with open("json/codes.json", "r", encoding="utf-8") as code_file:
+                        codes = json.load(code_file)
+                    codes[code]['usage_limit'] = limit
+                    with open("json/codes.json", "w", encoding="utf-8") as code_file:
+                        json.dump(codes, code_file, indent=2)
+                    bot.log_action(f"[CODE] Usage limit of code '{code}' has been changed to '{limit}'", bot.code_logger)
+
                 else:
-                    bot.log_action(f"[LOOP] Unknown event type : '{item['type']}'", bot.bot_logger, 30)
+                    bot.log_action(f"[LOOP] Unknown event type : '{item_type}'", bot.bot_logger, 30)
                     continue
 
                 del item

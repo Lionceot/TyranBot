@@ -483,6 +483,13 @@ class Admin(commands.Cog):
 
         await ctx.respond(embed=codes_emb, view=AdminCodesView())
 
+    # for the future command admin_codes_add here's the data structure of a usage_limit modification event :
+    # data = {
+    #     "type": "code-usage",
+    #     "code": "insert_code_name",
+    #     "limit": 0
+    # }
+
 
 def setup(bot_):
     bot_.add_cog(Admin(bot_))

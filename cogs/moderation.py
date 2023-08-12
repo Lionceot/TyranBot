@@ -6,7 +6,7 @@ import json
 from datetime import timedelta
 
 from main import MyBot
-from custom_functions import get_parameter, time_now, string_to_time, time_to_string
+from custom_functions import get_parameter, time_now, string_to_time, time_to_string, add_event
 
 
 class Moderation(commands.Cog):
@@ -183,17 +183,7 @@ class Moderation(commands.Cog):
             "guild": guild.id
         }
 
-        with open("json/events.json", "r", encoding="utf-8") as event_file:
-            events = json.load(event_file)
-
-        if end_timestamp in events:
-            events[end_timestamp].append(new_event)
-
-        else:
-            events[end_timestamp] = [new_event]
-
-        with open("json/events.json", "w", encoding="utf-8") as event_file:
-            json.dump(events, event_file, indent=2)
+        add_event(end_timestamp, new_event)
 
         await user.add_roles(mute_role)
 
@@ -362,17 +352,7 @@ class Moderation(commands.Cog):
                 "guild": ctx.guild_id
             }
 
-            with open("json/events.json", "r", encoding="utf-8") as event_file:
-                events = json.load(event_file)
-
-            if end_timestamp in events:
-                events[end_timestamp].append(new_event)
-
-            else:
-                events[end_timestamp] = [new_event]
-
-            with open("json/events.json", "w", encoding="utf-8") as event_file:
-                json.dump(events, event_file, indent=2)
+            add_event(end_timestamp, new_event)
 
         await user.ban(reason=reason)
 
