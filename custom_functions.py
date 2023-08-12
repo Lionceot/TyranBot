@@ -1,8 +1,10 @@
 from json import load as json_load, dump as json_dump
 from pytz import timezone
 from datetime import datetime
+from random import choice
+from string import ascii_lowercase
 
-from custom_errors import InvalidTimeString
+from custom_errors import InvalidTimeString, CommandDisabled
 
 
 def get_codes_data():
@@ -171,3 +173,22 @@ def time_to_string(raw_time: int):
         result += f"{second_amt}s "
 
     return result[:-1]
+
+
+def is_disabled_check(ctx):
+    with open("json/disabled.json", "r", encoding="utf-8") as disabled_command_file:
+        disabled_commands = json_load(disabled_command_file)
+
+    name = ctx.command.qualified_name
+    if name in disabled_commands:
+        if not disabled_commands[name]['force'] and ctx.bot.is_owner(ctx.author):
+            return True
+
+        raise CommandDisabled(disabled_commands[name]['reason'])
+
+    else:
+        return True
+
+
+def get_random_string(length: int):
+    return "".join(choice(ascii_lowercase) for _ in range(length))

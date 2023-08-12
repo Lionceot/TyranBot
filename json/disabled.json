@@ -1,0 +1,7 @@
+{
+  "command_name": {
+    "reason": "text",
+    "author": "<@author_id>",
+    "force": false
+  }
+}

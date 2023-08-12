@@ -4,7 +4,7 @@ from discord.commands import SlashCommandGroup, UserCommand, MessageCommand, Sla
 from discord.ext.commands import Command
 
 from main import MyBot
-from custom_functions import get_parameter
+from custom_functions import get_parameter, is_disabled_check
 
 
 class Help(commands.Cog):
@@ -18,6 +18,7 @@ class Help(commands.Cog):
         self.bot.log_action(log_msg, self.bot.bot_logger)
 
     @commands.slash_command(name="help", usage="", description="Give information about commands")
+    @commands.check(is_disabled_check)
     async def help(self, ctx: ApplicationContext):
         res = ""
         cogs_to_exclude = ["Admin", "Moderation", "Test", "Help"]

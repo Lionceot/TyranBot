@@ -14,7 +14,8 @@ from main import MyBot, db, in_database, new_player
 from custom_errors import NotEnoughMoney, IncorrectBetValue, UnknownSign, UserIsBot, UnknownObject, MaxAmountReached, \
     HowDidYouGetHere, TurnipFileError, TurnipPatternError, CantBuyTurnip, CantSellTurnip
 from custom_views import PaymentView, ShopBrowserView
-from custom_functions import key_with_lowest_value, sort_dict_by_value, get_parameter, time_now, get_text
+from custom_functions import key_with_lowest_value, sort_dict_by_value, get_parameter, time_now, get_text, \
+    is_disabled_check
 
 load_dotenv()
 
@@ -92,6 +93,7 @@ class Economy(commands.Cog):
     @commands.slash_command(name="coins", description="Indique la quantité d'argent d'un utilisateur.",
                             brief="Show a user's amount of money")
     @commands.guild_only()
+    @commands.check(is_disabled_check)
     async def coins(self, ctx: ApplicationContext, user: User = None):
         if user:
             if user.bot:
@@ -148,6 +150,7 @@ class Economy(commands.Cog):
         await ctx.respond(embed=em, ephemeral=True)
 
     @commands.slash_command(name="leaderboard", description="Show the richest users", aliases=["lb", "richest"])
+    @commands.check(is_disabled_check)
     async def leaderboard(self, ctx: ApplicationContext):
         # TODO: afficher le classement de user if in_database(user)
         #   vérifier la structure de curA après execution de la requete SQL et peut etre passer à un
@@ -192,6 +195,7 @@ class Economy(commands.Cog):
 
     @commands.slash_command(name="daily", description="Claim your daily reward")
     @commands.guild_only()
+    @commands.check(is_disabled_check)
     async def daily(self, ctx: ApplicationContext):
         # TODO : change bonus calculation with a dict
         user = ctx.author
@@ -250,6 +254,7 @@ class Economy(commands.Cog):
         await ctx.respond(embed=em)
 
     @commands.slash_command(description="A bonus earning every 7 /daily", guild_only=True)
+    @commands.check(is_disabled_check)
     async def bonus(self, ctx: ApplicationContext):
         user = ctx.author
 
@@ -277,6 +282,7 @@ class Economy(commands.Cog):
     @commands.slash_command(name="work", description="Récupérer votre salaire toutes les 3h.")
     @commands.guild_only()
     @commands.cooldown(1, 10800, commands.BucketType.user)
+    @commands.check(is_disabled_check)
     async def work(self, ctx: ApplicationContext):
         user = ctx.author
         await new_player(user)
@@ -290,6 +296,7 @@ class Economy(commands.Cog):
     @commands.slash_command(name="shop", description="Show the available things to buy")
     @commands.guild_only()
     @option(name="category", description="What section are you looking for ?", choices=["ranks", "colors", "perks"])
+    @commands.check(is_disabled_check)
     async def shop(self, ctx: ApplicationContext, category: str = "home"):
         user = ctx.author
         await new_player(user)
@@ -382,6 +389,7 @@ class Economy(commands.Cog):
     @option(name="item_id", description="This item you want to buy", autocomplete=buy_autocomplete)
     @option(name="quantity", description="The amount of item you want ot buy", min_value=1)
     @commands.guild_only()
+    @commands.check(is_disabled_check)
     async def buy(self, ctx: ApplicationContext, item_id: str, quantity: int = 1):
         user = ctx.author
         await new_player(user)
@@ -461,6 +469,7 @@ class Economy(commands.Cog):
     @commands.slash_command(name="use")
     @option(name="item_id", description="This item you want to buy", autocomplete=use_autocomplete)
     @commands.guild_only()
+    @commands.check(is_disabled_check)
     async def use(self, ctx: ApplicationContext, item_id: str):
         user = ctx.author
         curA.execute(f"SELECT language FROM users WHERE discordID = {user.id}")
@@ -567,6 +576,7 @@ class Economy(commands.Cog):
 
     @commands.slash_command(name="inventory", description="See someone's inventory")
     @option(name="user", description="Who do you want to see the inventory ?")
+    @commands.check(is_disabled_check)
     async def inventory(self, ctx, user: User = None):
         """
         Show someone's inventory
@@ -643,6 +653,7 @@ class Economy(commands.Cog):
     @option(name="receiver", type=User)
     @option(name="amount", min_value=1)
     @commands.guild_only()
+    @commands.check(is_disabled_check)
     async def pay(self, ctx: ApplicationContext, receiver: User, amount: int):
         if receiver.bot:
             raise UserIsBot(user=receiver)
@@ -681,6 +692,7 @@ class Economy(commands.Cog):
     @option(name="bet", description="How much would you gamble ?", min_amt=1, max_value=get_parameter('bet_limit'),
             required=False)
     # @commands.cooldown(1, 1800, commands.BucketType.user)
+    @commands.check(is_disabled_check)
     async def dice(self, ctx: ApplicationContext, bet: int = None):
         user = ctx.author
         await new_player(user)
@@ -759,6 +771,7 @@ class Economy(commands.Cog):
                             guild_only=True)
     @option(name="bet", description="How much would you gamble ?", min_amt=1, max_value=get_parameter('bet_limit'))
     # @commands.cooldown(1, 3600, commands.BucketType.user)
+    @commands.check(is_disabled_check)
     async def guess(self, ctx: ApplicationContext, bet: int = None):
         disabled = True
         if disabled:
@@ -872,6 +885,7 @@ class Economy(commands.Cog):
         OptionChoice(name="pile", value="tail")])
     @option(name="bet", description="How much money will you gamble ?", max_value=get_parameter('bet_limit'))
     @commands.cooldown(1, 3600, commands.BucketType.user)
+    @commands.check(is_disabled_check)
     async def coinflip(self, ctx: ApplicationContext, side: str, bet: int = None):
         user = ctx.author
         await new_player(user)
@@ -930,6 +944,7 @@ class Economy(commands.Cog):
     @option(name="bet", description="How much would you gamble ?", min_amt=1,
             max_value=get_parameter('bet_limit'), required=False)
     @commands.cooldown(1, 3600, commands.BucketType.user)
+    @commands.check(is_disabled_check)
     async def rps(self, ctx: ApplicationContext, sign: str, bet: int):
         user = ctx.author
         await new_player(user)
@@ -1079,6 +1094,7 @@ class Economy(commands.Cog):
         return statEmb
 
     @commands.slash_command(name="stats", brief="Shows you the stats of someone", usage="")
+    @commands.check(is_disabled_check)
     async def stats(self, ctx: ApplicationContext, user: User = None):
         if not user:
             user = ctx.author
@@ -1533,8 +1549,8 @@ class Turnip(commands.Cog):
     turnip_group = SlashCommandGroup("turnip", "commands related to turnip")
 
     @turnip_group.command(name="debug")
-    @option(name="count")
     @commands.is_owner()
+    @commands.check(is_disabled_check)
     async def turnip_debug(self, ctx: ApplicationContext):
         await ctx.defer()
 
@@ -1545,6 +1561,7 @@ class Turnip(commands.Cog):
         await ctx.respond(f"EoC", ephemeral=True)
 
     @turnip_group.command(name="info")
+    @commands.check(is_disabled_check)
     async def turnip_info(self, ctx: ApplicationContext):
         currency_logo, bot_version, turnip_logo = get_parameter(['currency-logo', 'version', 'turnip-emote'])
 
@@ -1576,6 +1593,7 @@ class Turnip(commands.Cog):
 
 #
     @turnip_group.command(name="buy")
+    @commands.check(is_disabled_check)
     async def turnip_buy(self, ctx: ApplicationContext, amt: int):
         await new_player(ctx.author)
 
@@ -1602,6 +1620,7 @@ class Turnip(commands.Cog):
             self.bot.log_action(f"[TURNIP] {user} bought {amt} turnip for {price} coins", self.bot.turnip_logger)
 
     @turnip_group.command(name="sell", usage="[turnip_amount: int]")
+    @commands.check(is_disabled_check)
     async def turnip_sell(self, ctx: ApplicationContext, amt: int):
         await new_player(ctx.author)
 

@@ -1,16 +1,18 @@
 import discord
 from discord import Embed, Color, TextChannel, Message, ApplicationContext, option, Role, User, Status, \
-    AutocompleteContext, OptionChoice, Guild
+    AutocompleteContext, OptionChoice, Guild, SlashCommand, File
 from discord.ext import commands
 from discord.commands import SlashCommandGroup
 from discord.ui import InputText, Modal, View
 
 import json
+import os
+import tempfile
 
 from main import db, MyBot, in_database
 from custom_views import DeleteShopItemView, AdminCodesView
 from custom_errors import CommandDisabled
-from custom_functions import add_event, get_parameter, var_set, time_now
+from custom_functions import add_event, get_parameter, var_set, time_now, is_disabled_check
 
 
 curLang = db.cursor(buffered=True)      # cursor used to get the language setting in all the commands
@@ -48,9 +50,11 @@ class Admin(commands.Cog):
     tickets_sub = admin_group.create_subgroup("ticket", "Tickets system management")
     toggle_sub = admin_group.create_subgroup("toggle", "Toggle intern function")
     coins_sub = admin_group.create_subgroup("coins", "Modify coins amounts")
+    commands_sub = admin_group.create_subgroup("commands", "Commands management")
 
     @admin_group.command(name="shutdown")
     @commands.is_owner()
+    @commands.check(is_disabled_check)
     async def shutdown(self, ctx: ApplicationContext):
         self.bot.log_action(f"{ctx.author} stopped the bot", self.bot.bot_logger)
         await ctx.respond("Shutting down the bot !", ephemeral=True)
@@ -59,6 +63,7 @@ class Admin(commands.Cog):
     @admin_group.command(name="dreset", description="Redonne la permission de refaire un daily",
                          brief="Give everyone the permission to do a daily")
     @commands.is_owner()
+    @commands.check(is_disabled_check)
     async def forced_daily_reset(self, ctx: ApplicationContext):
         curA.execute("UPDATE dailyrecord SET ready = 1")
         db.commit()
@@ -67,6 +72,7 @@ class Admin(commands.Cog):
 
     @admin_group.command(name="guilds")
     @commands.is_owner()
+    @commands.check(is_disabled_check)
     async def admin_guilds(self, ctx: ApplicationContext):
         emb = Embed(color=0x36393F).set_author(name="Guild list")
         for guild in self.bot.guilds:
@@ -75,6 +81,7 @@ class Admin(commands.Cog):
 
     @admin_group.command(name="leave", description="Make the bot leave a specific server", guild_only=True)
     @commands.is_owner()
+    @commands.check(is_disabled_check)
     async def admin_leave(self, ctx: ApplicationContext, guild: Guild):
         await guild.leave()
         self.bot.log_action(f"[ADMIN] {ctx.author} made the bot leave the guild '{guild.name}' ({guild.id})", self.bot.admin_logger)
@@ -99,6 +106,8 @@ class Admin(commands.Cog):
             autocomplete=shop_item_autocomplete)
     @option(name="amount", description="How many times you want to add this item in their inventory",
             min_value=1, max_value=100, default=1)
+    @commands.is_owner()
+    @commands.check(is_disabled_check)
     async def admin_inv_add_item(self, ctx: ApplicationContext, user: User, object_id: str, amount: int):
         # todo: code this
         await ctx.respond("end of command", ephemeral=True)
@@ -109,6 +118,8 @@ class Admin(commands.Cog):
             autocomplete=user_inventory_autocomplete)
     @option(name="amount", description="How many times you want to remove this item from their inventory",
             min_value=1, max_value=100, default=1)
+    @commands.is_owner()
+    @commands.check(is_disabled_check)
     async def admin_inv_remove_item(self, ctx: ApplicationContext, user: User, object_id: str, amount: int):
         # todo: code this
         await ctx.respond("end of command", ephemeral=True)
@@ -117,6 +128,7 @@ class Admin(commands.Cog):
     @option(name="user")
     @option(name="amount")
     @commands.is_owner()
+    @commands.check(is_disabled_check)
     async def admin_coins_add(self, ctx: ApplicationContext, user: User, amount: int):
         if not in_database(user):
             await ctx.respond("User has never used the economy", ephemeral=True)
@@ -131,6 +143,7 @@ class Admin(commands.Cog):
     @option(name="user")
     @option(name="amount")
     @commands.is_owner()
+    @commands.check(is_disabled_check)
     async def admin_coins_remove(self, ctx: ApplicationContext, user: User, amount: int):
         if not in_database(user):
             await ctx.respond("User has never used the economy", ephemeral=True)
@@ -145,6 +158,7 @@ class Admin(commands.Cog):
     @option(name="user")
     @option(name="amount")
     @commands.is_owner()
+    @commands.check(is_disabled_check)
     async def admin_coins_set(self, ctx: ApplicationContext, user: User, amount: int):
         if not in_database(user):
             await ctx.respond("User has never used the economy", ephemeral=True)
@@ -161,6 +175,7 @@ class Admin(commands.Cog):
     @option(name="text", description="The text after the activity type")
     @option(name="url", description="Url if activity is streaming", required=False)
     @commands.is_owner()
+    @commands.check(is_disabled_check)
     async def admin_set_bot_status(self, ctx, status: str, activity: str, text: str, url: str = None):
         if activity == "streaming" and not url:
             await ctx.respond("give me an url", ephemeral=True)
@@ -187,6 +202,7 @@ class Admin(commands.Cog):
     @option(name="role", description="Role being affected", type=Role, required=False)
     @option(name="user", description="User being affected", type=User, required=False)
     @commands.is_owner()
+    @commands.check(is_disabled_check)
     async def admin_set_boost(self, ctx: ApplicationContext, value: int, boost_type: str, target: str, length: int, role: Role = None, user: User = None):
         end = round(time_now().timestamp()) + length
 
@@ -234,6 +250,7 @@ class Admin(commands.Cog):
     @suggestion_sub.command(name="channel", description="Define a new channel where suggestions will be sent")
     @option(name="channel", description="The channel", type=TextChannel)
     @commands.is_owner()
+    @commands.check(is_disabled_check)
     async def admin_suggestion_channel(self, ctx, channel: TextChannel):
         with open("config.json", 'r', encoding='utf-8') as config_file:
             config = json.load(config_file)
@@ -257,6 +274,7 @@ class Admin(commands.Cog):
     @option(name="message", type=Message)
     @option(name="status", choices=["Refused", "Accepted", "WIP", "Waiting", "Implemented"])
     @commands.is_owner()
+    @commands.check(is_disabled_check)
     async def admin_suggestion_status(self, ctx, message: Message, status: str):
         status_color = {"Refused": 0xea8357, "Accepted": 0x7cd444, "WIP": 0xe0ab48,
                         "Implemented": 0x065535, "Waiting": 0x9999ff}
@@ -281,6 +299,7 @@ class Admin(commands.Cog):
     @suggestion_sub.command(name="setup", description="Owner only")
     @option(name="channel", description="Channel where it's sent", type=TextChannel, required=False)
     @commands.is_owner()
+    @commands.check(is_disabled_check)
     async def admin_suggest_setup(self, ctx, channel: TextChannel = None):
         channel_id = channel.id if channel else ctx.channel.id
         new_channel = self.bot.get_channel(channel_id)
@@ -357,6 +376,7 @@ class Admin(commands.Cog):
     @tickets_sub.command(name="message")
     @option(name="channel", description="Where the message is sent", type=TextChannel, required=False)
     @commands.is_owner()
+    @commands.check(is_disabled_check)
     async def admin_tickets_message(self, ctx: ApplicationContext, channel: TextChannel = None):
         if not channel:
             channel = ctx.channel
@@ -365,6 +385,7 @@ class Admin(commands.Cog):
 
     @toggle_sub.command(name="turnip-buy")
     @commands.is_owner()
+    @commands.check(is_disabled_check)
     async def admin_toggle_turnip_buy(self, ctx: ApplicationContext):
         with open("json/turnip.json", "r", encoding="utf-8") as turnip_file:
             turnip_settings = json.load(turnip_file)
@@ -383,6 +404,7 @@ class Admin(commands.Cog):
 
     @toggle_sub.command(name="turnip-sell")
     @commands.is_owner()
+    @commands.check(is_disabled_check)
     async def admin_toggle_turnip_sell(self, ctx: ApplicationContext):
         with open("json/turnip.json", "r", encoding="utf-8") as turnip_file:
             turnip_settings = json.load(turnip_file)
@@ -408,6 +430,7 @@ class Admin(commands.Cog):
     @option(name="hidden", description="Do you want the item not to appear in the shop ?",
             choices=[OptionChoice(name="Yes", value=1), OptionChoice(name="No", value=0)], default=0)
     @commands.is_owner()
+    @commands.check(is_disabled_check)
     async def admin_shop_add_item(self, ctx: ApplicationContext,
                                   object_id: str, 
                                   price: int,
@@ -451,6 +474,7 @@ class Admin(commands.Cog):
     @option(name="object_id", description="The unique descriptor of the item you want to delete",
             autocomplete=shop_remove_item_autocomplete)
     @commands.is_owner()
+    @commands.check(is_disabled_check)
     async def admin_shop_remove_item(self, ctx: ApplicationContext, object_id: str):
         self.shop_items = None
         view = DeleteShopItemView(object_id=object_id, bot=self.bot)
@@ -458,6 +482,7 @@ class Admin(commands.Cog):
 
     @admin_group.command(name="codes")
     @commands.is_owner()
+    @commands.check(is_disabled_check)
     async def admin_codes(self, ctx: ApplicationContext):
         with open("json/codes.json", "r", encoding="utf-8") as code_file:
             codes = json.load(code_file)
@@ -489,6 +514,83 @@ class Admin(commands.Cog):
     #     "code": "insert_code_name",
     #     "limit": 0
     # }
+
+    @commands.slash_command(name="maintenance", description="Disable or enable the use of a command globally")
+    @option(name="command", description="The command you want to disable/enable")
+    @option(name="reason", description="Why are you disabling it. Put anything if enabling.")
+    @commands.is_owner()
+    async def maintenance(self, ctx: ApplicationContext, command: str, reason: str):
+        raw_commands = self.bot.application_commands
+        command_list = []
+        for cmd in raw_commands:
+            if isinstance(cmd, SlashCommandGroup):
+                for s1 in cmd.walk_commands():
+                    if isinstance(s1, SlashCommandGroup):
+                        for s2 in s1.walk_commands():
+                            command_list.append(f"{s2.qualified_name}")
+                    elif isinstance(s1, SlashCommand):
+                        command_list.append(f"{s1.qualified_name}")
+
+            elif isinstance(cmd, SlashCommand):
+                command_list.append(f"{cmd.qualified_name}")
+
+        if command in command_list:
+            with open("json/disabled.json", "r", encoding="utf-8") as disabled_command_file:
+                disabled_commands = json.load(disabled_command_file)
+
+            if command in disabled_commands:
+                del disabled_commands[command]
+                await ctx.respond(f"Command is no longer disabled", ephemeral=True)
+                self.bot.log_action(f"[ADMIN] Command '{command}' has been enabled by {ctx.author.id}",
+                                    self.bot.admin_logger)
+
+            else:
+                data = {
+                    "reason": reason,
+                    "author": f"<@{ctx.author.id}>"
+                }
+                disabled_commands[command] = data
+                await ctx.respond(f"Command `{command}` is now disabled because `{reason}`", ephemeral=True)
+                self.bot.log_action(f"[ADMIN] Command '{command}' has been disabled by {ctx.author.id} for '{reason}'",
+                                    self.bot.admin_logger)
+
+            with open("json/disabled.json", "w", encoding="utf-8") as disabled_command_file:
+                json.dump(disabled_commands, disabled_command_file, indent=2)
+
+        else:
+            await ctx.respond(f"Command `{command_list}` not found. To see all commands type `/admin commands list`.")
+
+    @commands_sub.command(name="list")
+    @commands.is_owner()
+    @commands.check(is_disabled_check)
+    async def admin_commands_list(self, ctx: ApplicationContext):
+        raw_commands = self.bot.application_commands
+        command_list = []
+        for cmd in raw_commands:
+            if isinstance(cmd, SlashCommandGroup):
+                for s1 in cmd.walk_commands():
+                    if isinstance(s1, SlashCommandGroup):
+                        for s2 in s1.walk_commands():
+                            command_list.append(f"{s2.qualified_name}")
+                    elif isinstance(s1, SlashCommand):
+                        command_list.append(f"{s1.qualified_name}")
+
+            elif isinstance(cmd, SlashCommand):
+                command_list.append(f"{cmd.qualified_name}")
+
+        command_list = str(command_list) * 2
+        if len(command_list) > 2000:
+            fd, path = tempfile.mkstemp()
+            try:
+                with os.fdopen(fd, 'w') as temp_file:
+                    temp_file.write(command_list)
+            finally:
+                await ctx.respond("List was too long so I just sent you a file with the list in it !",
+                                  file=File(path, "command_list.txt"), ephemeral=True)
+                os.remove(path)
+
+        else:
+            await ctx.respond(command_list, ephemeral=True)
 
 
 def setup(bot_):

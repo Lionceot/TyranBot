@@ -5,7 +5,7 @@ import json
 
 from main import MyBot, db
 from custom_errors import CodeLimitReached, UnknownCode, UnexpectedError
-from custom_functions import get_parameter, time_now
+from custom_functions import get_parameter, time_now, is_disabled_check
 
 
 curA = db.cursor(buffered=True)
@@ -24,6 +24,7 @@ class Utils(commands.Cog):
         self.bot.log_action(log_msg, self.bot.bot_logger)
 
     @commands.slash_command(name="redeem")
+    @commands.check(is_disabled_check)
     async def redeem(self, ctx: ApplicationContext, code: str):
         with open("json/codes.json", "r", encoding="utf-8") as code_file:
             codes = json.load(code_file)
@@ -118,6 +119,7 @@ class Utils(commands.Cog):
         self.bot.log_action(f"[CODE] {user.name} redeemed code '{code}'", self.bot.code_logger)
 
     @commands.slash_command(name="server")
+    @commands.check(is_disabled_check)
     async def server(self, ctx: ApplicationContext):
         guild = ctx.guild
         emb = Embed(color=Color.blurple(), description=guild.description)
@@ -155,6 +157,7 @@ class Utils(commands.Cog):
         await ctx.respond(embed=emb, ephemeral=True)
 
     @commands.slash_command(name="about")
+    @commands.check(is_disabled_check)
     async def about(self, ctx: ApplicationContext):
         emb = Embed(color=Color.blurple(), description=f"The TyranBot is private multi-purpose bot. Its main functionality"
                                                        f" is its economic system but it also handle moderation and has the"
@@ -174,6 +177,7 @@ class Utils(commands.Cog):
 
     @commands.slash_command(name="avatar")
     @option(name="user")
+    @commands.check(is_disabled_check)
     async def avatar(self, ctx: ApplicationContext, user: User = None):
         if user is None:
             user = ctx.author
@@ -181,6 +185,7 @@ class Utils(commands.Cog):
 
     @commands.slash_command(name="banner")
     @option(name="user")
+    @commands.check(is_disabled_check)
     async def banner(self, ctx: ApplicationContext, user: User = None):
         if user is None:
             user = ctx.author

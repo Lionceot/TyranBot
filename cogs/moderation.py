@@ -6,7 +6,7 @@ import json
 from datetime import timedelta
 
 from main import MyBot
-from custom_functions import get_parameter, time_now, string_to_time, time_to_string, add_event
+from custom_functions import get_parameter, time_now, string_to_time, time_to_string, add_event, is_disabled_check
 
 
 class Moderation(commands.Cog):
@@ -23,6 +23,7 @@ class Moderation(commands.Cog):
     @option(name="user", description="The user you want to timeout", type=User)
     @option(name="reason", description="The reason why you want to timeout that user")
     @commands.guild_only()
+    @commands.check(is_disabled_check)
     async def warn(self, ctx: ApplicationContext, user: User, reason: str):
         await ctx.defer()
 
@@ -73,6 +74,7 @@ class Moderation(commands.Cog):
     @option(name="reason", description="The reason why you want to timeout that user")
     @commands.has_permissions(moderate_members=True)
     @commands.guild_only()
+    @commands.check(is_disabled_check)
     async def timeout(self, ctx: ApplicationContext, user: Member, duration: str, reason: str):
         await ctx.defer()
 
@@ -122,6 +124,7 @@ class Moderation(commands.Cog):
     @option(name="reason", description="The reason why you want to mute that user")
     @commands.has_permissions(moderate_members=True)
     @commands.guild_only()
+    @commands.check(is_disabled_check)
     async def tempmute(self, ctx: ApplicationContext, user: Member, duration: str, reason: str):
         await ctx.defer()
 
@@ -202,6 +205,7 @@ class Moderation(commands.Cog):
     @option(name="reason", description="The reason why you want to mute that user")
     @commands.has_permissions(moderate_members=True)
     @commands.guild_only()
+    @commands.check(is_disabled_check)
     async def mute(self, ctx: ApplicationContext, user: Member, reason: str):
         await ctx.defer()
         log_channel_id, bot_version, mute_role_id = get_parameter(["moderation_logs", "version", "mute_role"])
@@ -267,6 +271,7 @@ class Moderation(commands.Cog):
     @option(name="reason", description="The reason why you want to kick that user")
     @commands.has_permissions(kick_members=True)
     @commands.guild_only()
+    @commands.check(is_disabled_check)
     async def kick(self, ctx: ApplicationContext, user: Member, reason: str):
         await ctx.defer()
         log_channel_id, bot_version = get_parameter(["moderation_logs", "version"])
@@ -313,6 +318,7 @@ class Moderation(commands.Cog):
     @option(name="reason", description="The reason why you want to ban that user")
     @commands.has_permissions(ban_members=True)
     @commands.guild_only()
+    @commands.check(is_disabled_check)
     async def tempban(self, ctx: ApplicationContext, user: Member, duration: str, reason: str):
         await ctx.defer()
         ban_time = string_to_time(duration)
@@ -372,6 +378,7 @@ class Moderation(commands.Cog):
     @option(name="reason", description="The reason why you want to ban that user")
     @commands.has_permissions(ban_members=True)
     @commands.guild_only()
+    @commands.check(is_disabled_check)
     async def ban(self, ctx: ApplicationContext, user: Member, reason: str):
         await ctx.defer()
         log_channel_id, bot_version = get_parameter(["moderation_logs", "version"])
@@ -418,6 +425,7 @@ class Moderation(commands.Cog):
     @logs_group.command(name="see")
     @option(name="user", description="The user whose logs you're looking for")
     @commands.guild_only()
+    @commands.check(is_disabled_check)
     async def logs_see(self, ctx: ApplicationContext, user: User):
         with open("json/moderation.json", "r", encoding="utf-8") as log_file:
             logs = json.load(log_file)
@@ -451,6 +459,7 @@ class Moderation(commands.Cog):
     @option(name="user", description="The user whose logs you want to delete")
     @commands.is_owner()
     @commands.guild_only()
+    @commands.check(is_disabled_check)
     async def logs_clear(self, ctx: ApplicationContext, user: User):
         with open("json/moderation.json", "r", encoding="utf-8") as log_file:
             logs = json.load(log_file)
@@ -473,6 +482,7 @@ class Moderation(commands.Cog):
     @option(name="channel", description="The channel you want to lock", required=False)
     @commands.has_permissions(manage_channels=True)
     @commands.guild_only()
+    @commands.check(is_disabled_check)
     async def lock_channel(self, ctx: ApplicationContext, channel: TextChannel = None):
 
         if channel is None:
@@ -491,6 +501,7 @@ class Moderation(commands.Cog):
     @option(name="channel", description="The channel you want to unlock", required=False)
     @commands.has_permissions(manage_channels=True)
     @commands.guild_only()
+    @commands.check(is_disabled_check)
     async def unlock_channel(self, ctx: ApplicationContext, channel: TextChannel = None):
 
         if channel is None:
@@ -508,6 +519,7 @@ class Moderation(commands.Cog):
     @commands.slash_command(name="lockdown")
     @commands.has_permissions(administrator=True)
     @commands.guild_only()
+    @commands.check(is_disabled_check)
     async def lockdown(self, ctx: ApplicationContext):
         guild = ctx.guild
         default_role = guild.default_role
