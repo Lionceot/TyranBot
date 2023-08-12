@@ -136,7 +136,7 @@ class MyBot(commands.Bot):
     async def on_application_command_completion(self, ctx: ApplicationContext):
         args = " ".join([f"[{option['name']}:{option['value']}]" for option in
                          ctx.selected_options]) if ctx.selected_options is not None else ''
-        log_msg = f"{ctx.author} ({ctx.author.id}) used app_command '{ctx.command.qualified_name}' {args}"
+        log_msg = f"{ctx.author.name} ({ctx.author.id}) used app_command '{ctx.command.qualified_name}' {args}"
         self.log_action(log_msg, self.cmd_logger)
 
     async def on_command_error(self, ctx, exception: errors.CommandError):
