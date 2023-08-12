@@ -1,8 +1,13 @@
+from os import fdopen as os_fdopen, remove as os_remove
+from tempfile import mkstemp as tempfile_mkstemp
 from json import load as json_load, dump as json_dump
-from pytz import timezone
-from datetime import datetime
-from random import choice
+
 from string import ascii_lowercase
+from random import choice
+
+from datetime import datetime
+from pytz import timezone
+from discord import File
 
 from custom_errors import InvalidTimeString, CommandDisabled
 
@@ -192,3 +197,13 @@ def is_disabled_check(ctx):
 
 def get_random_string(length: int):
     return "".join(choice(ascii_lowercase) for _ in range(length))
+
+
+def text_to_file(text: str, title: str = None):
+    fd, path = tempfile_mkstemp()
+    try:
+        with os_fdopen(fd, 'w') as temp_file:
+            temp_file.write(text)
+    finally:
+        file = File(path, title)
+        return file, path

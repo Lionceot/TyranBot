@@ -12,7 +12,7 @@ import tempfile
 from main import db, MyBot, in_database
 from custom_views import DeleteShopItemView, AdminCodesView
 from custom_errors import CommandDisabled
-from custom_functions import add_event, get_parameter, var_set, time_now, is_disabled_check
+from custom_functions import add_event, get_parameter, var_set, time_now, is_disabled_check, text_to_file
 
 
 curLang = db.cursor(buffered=True)      # cursor used to get the language setting in all the commands
@@ -578,17 +578,12 @@ class Admin(commands.Cog):
             elif isinstance(cmd, SlashCommand):
                 command_list.append(f"{cmd.qualified_name}")
 
-        command_list = str(command_list) * 2
+        command_list = str(command_list)
         if len(command_list) > 2000:
-            fd, path = tempfile.mkstemp()
-            try:
-                with os.fdopen(fd, 'w') as temp_file:
-                    temp_file.write(command_list)
-            finally:
-                await ctx.respond("List was too long so I just sent you a file with the list in it !",
-                                  file=File(path, "command_list.txt"), ephemeral=True)
-                os.remove(path)
-
+            file, path = text_to_file(command_list, "command_list.txt")
+            await ctx.respond("List was too long so I just sent you a file with the list in it !",
+                              file=file, ephemeral=True)
+            os.remove(path)
         else:
             await ctx.respond(command_list, ephemeral=True)
 
