@@ -281,15 +281,15 @@ async def ping(ctx: ApplicationContext):
         bot.log_action(f"[BOT] Bot ping is at {latency} ms", bot.bot_logger, 30)
 
 
-@tasks.loop(seconds=2)
+@tasks.loop(seconds=30)
 async def event_loop():
     now = round(time_now().timestamp())
 
-    with open("events.json", "r", encoding="utf-8") as event_file:
+    with open("json/events.json", "r", encoding="utf-8") as event_file:
         events = json.load(event_file)
 
     for timestamp in events:
-        if timestamp <= now:
+        if int(timestamp) <= now:
             for item in events[timestamp]:
                 item_type = item['type']
 
@@ -317,7 +317,7 @@ async def event_loop():
                     limit = item['limit']
                     with open("json/codes.json", "r", encoding="utf-8") as code_file:
                         codes = json.load(code_file)
-                    codes[code]['usage_limit'] = limit
+                    codes[code]['usage_limit'][0] = limit
                     with open("json/codes.json", "w", encoding="utf-8") as code_file:
                         json.dump(codes, code_file, indent=2)
                     bot.log_action(f"[CODE] Usage limit of code '{code}' has been changed to '{limit}'", bot.code_logger)
@@ -326,7 +326,7 @@ async def event_loop():
                     bot.log_action(f"[LOOP] Unknown event type : '{item_type}'", bot.bot_logger, 30)
                     continue
 
-                del item
+    events = {timestamp: events[timestamp] for timestamp in events if int(timestamp) > now}
 
     with open("json/events.json", "w", encoding="utf-8") as events_file:
         json.dump(events, events_file, indent=2)
