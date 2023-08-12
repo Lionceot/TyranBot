@@ -351,18 +351,18 @@ async def reload(ctx: ApplicationContext, extension=None):
                 try:
                     bot.reload_extension(f"cogs.{filename_[:-3]}")
                     await ctx.respond(f"> Cog `{filename_[:-3]}` successfully reloaded", ephemeral=True)
-                    bot.log_action(f"[COG] '{extension}' has been reloaded", bot.bot_logger)
+                    bot.log_action(f"[COG] Cog '{extension}' has been reloaded", bot.bot_logger)
 
                 except discord.ExtensionNotLoaded:
                     bot.load_extension(f"cogs.{filename_[:-3]}")
                     await ctx.respond(f"> Cog `{filename_[:-3]}` successfully loaded", ephemeral=True)
-                    bot.log_action(f"[COG] '{extension}' has been loaded", bot.bot_logger)
+                    bot.log_action(f"[COG] Cog '{extension}' has been loaded", bot.bot_logger)
 
     else:
         try:
             bot.reload_extension(f"cogs.{extension}")
             await ctx.respond(f"> Cog `{extension}` successfully reloaded", ephemeral=True)
-            bot.log_action(f"[COG] '{extension}' has been reloaded", bot.bot_logger)
+            bot.log_action(f"[COG] Cog '{extension}' has been reloaded", bot.bot_logger)
 
         except discord.ExtensionNotLoaded:
             try:
@@ -380,7 +380,7 @@ async def load(ctx: ApplicationContext, extension=None):
     try:
         bot.load_extension(f"cogs.{extension}")
         await ctx.respond(f"> Cog `{extension}` successfully loaded", ephemeral=True)
-        bot.log_action(f"[COG] '{extension}' has been loaded", bot.bot_logger)
+        bot.log_action(f"[COG] Cog '{extension}' has been loaded", bot.bot_logger)
 
     except discord.ExtensionNotFound:
         await ctx.respond(f"> Cog `{extension}` not found", ephemeral=True)
@@ -395,7 +395,7 @@ async def unload(ctx: ApplicationContext, extension=None):
     try:
         bot.unload_extension(f"cogs.{extension}")
         await ctx.respond(f"> Cog `{extension}` successfully unloaded", ephemeral=True)
-        bot.log_action(f"[COG] '{extension}' has been unloaded", bot.bot_logger)
+        bot.log_action(f"[COG] Cog '{extension}' has been unloaded", bot.bot_logger)
 
     except discord.ExtensionNotLoaded:
         await ctx.respond(f"> Cog `{extension}` not loaded", ephemeral=True)
