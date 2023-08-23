@@ -159,13 +159,23 @@ class Utils(commands.Cog):
     @commands.slash_command(name="about")
     @commands.check(is_disabled_check)
     async def about(self, ctx: ApplicationContext):
-        emb = Embed(color=Color.blurple(), description=f"The TyranBot is private multi-purpose bot. Its main functionality"
-                                                       f" is its economic system but it also handle moderation and has the"
-                                                       f" ambition to be able to do a lot more in the future.")
+        emb = Embed(color=Color.blurple(),
+                    description=f"The TyranBot is private multi-purpose bot. Its main functionality is its economic "
+                                f"system but it also handle moderation and has the ambition to be able to do a lot "
+                                f"more in the future.\n[See the last update here]"
+                                f"(https://tyranbot.notion.site/Patch-Notes-1d3e099591f24d52b3ad2a14825708b3?pvs=4)"
+                                f"\n\u200b")
 
         emb.set_author(name="TyranBot").set_thumbnail(url=self.bot.user.avatar.url)
 
         emb.add_field(name="Statistics", value=f"Soon:tm:", inline=False)
+
+        emb.add_field(name="Links", inline=False,
+                      value=f"- [Roadmap](https://tyranbot.notion.site/Progression-board-6f6de009062c41e09e3e5897a63b0720?pvs=4)\n"
+                            f"- [Wiki](https://tyranbot.notion.site/f6450f44efb84eecb6fdae0c28e71ae0?v=7e81b0a8caa04e4cb4688772d561487c&pvs=4)\n"
+                            f"- [Bug Tracker](https://tyranbot.notion.site/Bug-tracker-4503b81161e24dd485d45d878962920b?pvs=4)\n"
+                            f"- [GitHub repository](https://github.com/Lionceot/TyranBot)"
+                      )
 
         emb.add_field(name="Credits", inline=False,
                       value=f"Owner and developer : <@444504367152889877>\n"
@@ -189,9 +199,11 @@ class Utils(commands.Cog):
     async def banner(self, ctx: ApplicationContext, user: User = None):
         if user is None:
             user = ctx.author
+
+        user = await self.bot.fetch_user(user.id)
         banner = user.banner
         if banner is None:
-            await ctx.respond(f"{user.mention} doesn't have a banner")
+            await ctx.respond(f"{user.mention} doesn't have a banner", ephemeral=True)
         else:
             await ctx.respond(user.banner, ephemeral=True)
 
