@@ -518,8 +518,9 @@ class Admin(commands.Cog):
     @commands.slash_command(name="maintenance", description="Disable or enable the use of a command globally")
     @option(name="command", description="The command you want to disable/enable")
     @option(name="reason", description="Why are you disabling it. Put anything if enabling.")
+    @option(name="forced", description="Are owners affected by this ?", choices=["Yes", "No"])
     @commands.is_owner()
-    async def maintenance(self, ctx: ApplicationContext, command: str, reason: str):
+    async def maintenance(self, ctx: ApplicationContext, command: str, reason: str, forced: str):
         raw_commands = self.bot.application_commands
         command_list = []
         for cmd in raw_commands:
@@ -547,7 +548,8 @@ class Admin(commands.Cog):
             else:
                 data = {
                     "reason": reason,
-                    "author": f"<@{ctx.author.id}>"
+                    "author": f"<@{ctx.author.id}>",
+                    "forced": forced == "Yes"
                 }
                 disabled_commands[command] = data
                 await ctx.respond(f"Command `{command}` is now disabled because `{reason}`", ephemeral=True)
@@ -558,7 +560,8 @@ class Admin(commands.Cog):
                 json.dump(disabled_commands, disabled_command_file, indent=2)
 
         else:
-            await ctx.respond(f"Command `{command_list}` not found. To see all commands type `/admin commands list`.")
+            await ctx.respond(f"Command `{command_list}` not found. To see all commands type `/admin commands list`.",
+                              ephemeral=True)
 
     @commands_sub.command(name="list")
     @commands.is_owner()
