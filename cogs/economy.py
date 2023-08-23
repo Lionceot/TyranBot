@@ -6,7 +6,6 @@ from discord.commands import option
 import json
 from random import randint, choice
 import asyncio
-from dotenv import load_dotenv
 from datetime import datetime, date
 
 
@@ -16,8 +15,6 @@ from custom_errors import NotEnoughMoney, IncorrectBetValue, UnknownSign, UserIs
 from custom_views import PaymentView, ShopBrowserView
 from custom_functions import key_with_lowest_value, sort_dict_by_value, get_parameter, time_now, get_text, \
     is_disabled_check
-
-load_dotenv()
 
 curLang = db.cursor(buffered=True)  # cursor used to get the language setting in all the commands
 
@@ -257,6 +254,7 @@ class Economy(commands.Cog):
     @commands.check(is_disabled_check)
     async def bonus(self, ctx: ApplicationContext):
         user = ctx.author
+        await new_player(user)
 
         curA.execute(f"SELECT d.nbDaily, u.language FROM dailyrecord as d join users as u on u.discordID = d.discordID "
                      f"WHERE u.discordID = {user.id}")
@@ -472,6 +470,7 @@ class Economy(commands.Cog):
     @commands.check(is_disabled_check)
     async def use(self, ctx: ApplicationContext, item_id: str):
         user = ctx.author
+        await new_player(user)
         curA.execute(f"SELECT language FROM users WHERE discordID = {user.id}")
 
         user_lang = curA.fetchone()[0]
@@ -591,6 +590,7 @@ class Economy(commands.Cog):
         if user.bot:
             raise UserIsBot(user=user)
 
+        await new_player(user)
         curLang.execute(f"SELECT language FROM users WHERE discordID = {user.id}")
 
         user_lang = curLang.fetchone()[0]
@@ -611,6 +611,7 @@ class Economy(commands.Cog):
         if user.bot:
             raise UserIsBot(user=user)
 
+        await new_player(user)
         curLang.execute(f"SELECT language FROM users WHERE discordID = {user.id}")
 
         user_lang = curLang.fetchone()[0]
@@ -634,6 +635,7 @@ class Economy(commands.Cog):
         if user.bot:
             raise UserIsBot(user=user)
 
+        await new_player(user)
         curLang.execute(f"SELECT language FROM users WHERE discordID = {user.id}")
 
         user_lang = curLang.fetchone()[0]
@@ -1104,6 +1106,7 @@ class Economy(commands.Cog):
 
         if not in_database(user):
             await ctx.respond(get_text("stats.no_stat", ""), ephemeral=True)
+            return
 
         statEmb = self.get_stat_emb(user)
 
@@ -1117,6 +1120,8 @@ class Economy(commands.Cog):
 
         if not in_database(user):
             await ctx.respond(get_text("stats.no_stat", ""), ephemeral=True)
+            return
+
         statEmb = self.get_stat_emb(user)
         await ctx.respond(embed=statEmb)
 
@@ -1127,6 +1132,8 @@ class Economy(commands.Cog):
 
         if not in_database(user):
             await ctx.respond(get_text("stats.no_stat", ""), ephemeral=True)
+            return
+
         statEmb = self.get_stat_emb(user)
         await ctx.respond(embed=statEmb)
 
@@ -1554,9 +1561,9 @@ class Turnip(commands.Cog):
     async def turnip_debug(self, ctx: ApplicationContext):
         await ctx.defer()
 
-        self.bot.log_action(f"[TURNIP] Starting new week reset. (forced)", self.bot.turnip_logger)
-        await self.new_week(round(time_now().timestamp()))
-        self.bot.log_action(f"[TURNIP] New week reset finished.", self.bot.turnip_logger)
+        # self.bot.log_action(f"[TURNIP] Starting new week reset. (forced)", self.bot.turnip_logger)
+        # await self.new_week(round(time_now().timestamp()))
+        # self.bot.log_action(f"[TURNIP] New week reset finished.", self.bot.turnip_logger)
 
         await ctx.respond(f"EoC", ephemeral=True)
 
