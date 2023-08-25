@@ -3,5 +3,15 @@
     "reason": "text",
     "author": "<@author_id>",
     "force": false
+  },
+  "devlog": {
+    "reason": "no need for now",
+    "author": "<@444504367152889877>",
+    "force": true
+  },
+  "admin set bot-status": {
+    "reason": "Useless command with the upcoming feature of cycling status",
+    "author": "<@444504367152889877>",
+    "forced": true
   }
 }

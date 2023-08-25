@@ -3,7 +3,7 @@
     "effect": "money",
     "extra": 50,
     "usage_limit": [
-      -1,
+      0,
       "all"
     ],
     "used_by": {
@@ -13,7 +13,7 @@
       ]
     },
     "usage_count": 2,
-    "disabled": false
+    "disabled": true
   },
   "once": {
     "effect": "DM",
@@ -64,7 +64,7 @@
     ],
     "used_by": {},
     "usage_count": 0,
-    "disabled": false
+    "disabled": true
   },
   "ping": {
     "effect": "ping",
