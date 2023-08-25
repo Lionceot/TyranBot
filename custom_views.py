@@ -1,10 +1,10 @@
-from discord import ButtonStyle, User, Interaction, Embed, Color, InputTextStyle
+from discord import ButtonStyle, User, Interaction, Embed, Color, InputTextStyle, Forbidden, Message, Member
 from discord.ui import View, Button, Modal, InputText
 
 from json import dump as json_dump
 
-from main import db, get_parameter, get_text
-from custom_functions import get_codes_data
+from main import db
+from custom_functions import get_codes_data, get_parameter, get_text, time_now
 
 curA = db.cursor(buffered=True)
 curB = db.cursor(buffered=True)
@@ -473,3 +473,75 @@ async def details_callback(interaction: Interaction, codes_to_detail):
     warning_message = ":warning: Only 10 codes can be detailed at once" if limit_exceeded else ""
     failed_message = f"\n:warning:  The following codes couldn't be found :\n> {', '.join(failed)}" if len(failed) > 0 else ""
     await interaction.response.send_message(warning_message + failed_message, embeds=embeds, ephemeral=True)
+
+
+#######################################
+#                                     #
+#              UTILS COG              #
+#                                     #
+#######################################
+
+##############################
+#           REPORT           #
+##############################
+
+
+class ReportModal(Modal):
+    def __init__(self, title: str, report_type: str, attachement=None) -> None:
+        super().__init__(
+            title=title
+        )
+        self.report_type = report_type
+        self.attachement = attachement
+
+        self.add_item(InputText(label=f"Write your {'feedback' if report_type == 'feedback' else 'report'} here",
+                                value="Please give a maximum of details to avoid misunderstandings and "
+                                      "ensure that your report is processed correctly.",
+                                style=InputTextStyle.long))
+
+    async def callback(self, interaction: Interaction):
+        report = self.children[0].value.replace("```", r"\`\`\`")
+        now = time_now()
+
+        await interaction.response.send_message(
+            "Thank you for your report ! Moderators will examine it soon and take actions if necessary !",
+            ephemeral=True)
+
+        color_dict = {
+            "user": Color.blurple(),
+            "bug": Color.dark_orange(),
+            "feedback": Color.dark_purple()
+        }
+
+        attachement = self.attachement
+
+        if attachement is not None:
+            if isinstance(attachement, (User, Member)):
+                attachement = attachement.mention
+
+            elif isinstance(attachement, Message):
+                content = attachement.content.replace('```', r'\`\`\`')
+                link = attachement.jump_url
+                attachement = f"```\n{content}\n```\n[Link]({link})"
+
+        resume_emb = Embed(color=color_dict[self.report_type], description="You will find below the recent report you sent us.",
+                           timestamp=now)
+        resume_emb.set_author(name=f"Report resume - {self.report_type}")
+        resume_emb.add_field(name="\u200b", value=f"```\n{report}\n``` \nAttachement : {attachement}")
+        try:
+            await interaction.user.send(embed=resume_emb)
+
+        except Forbidden:
+            await interaction.followup.send_message(f"We couldn't send you a DM so here's your report resume !",
+                                                    embed=resume_emb, ephemeral=True)
+        finally:
+            channel = await interaction.client.fetch_channel(get_parameter('moderation_logs'))
+
+            report_emb = Embed(color=color_dict[self.report_type], timestamp=now,
+                               description=f"```\n{interaction.user.name} ({interaction.user.id})\n```")
+            report_emb.set_author(name=f"Report resume - {self.report_type}")
+            report_emb.add_field(name="Report", value=f"```\n{report}\n``` \nAttachement : {attachement}")
+
+            msg = await channel.send(embed=report_emb)
+            if self.report_type == "bug":
+                await msg.reply("<@444504367152889877>")
