@@ -1,4 +1,4 @@
-from discord import Embed, Color, TextChannel, ApplicationContext, option, User, Member
+from discord import Embed, Color, TextChannel, ApplicationContext, option, User, Member, Message
 from discord.ext import commands
 from discord.commands import SlashCommandGroup
 
@@ -7,6 +7,7 @@ from datetime import timedelta
 
 from main import MyBot
 from custom_functions import get_parameter, time_now, string_to_time, time_to_string, add_event, is_disabled_check
+from custom_views import ReportModal
 
 
 class Moderation(commands.Cog):
@@ -535,6 +536,34 @@ class Moderation(commands.Cog):
         emb = Embed(color=Color.red(), description=f":stop_sign: The server has been put under lockdown.")
         await ctx.respond(embed=emb)
         self.bot.log_action(f"{ctx.author} ({ctx.author.id}) has put guild {ctx.guild_id} under lockdown", self.bot.mod_logger)
+
+    @commands.slash_command(name="clear")
+    @option(name="count", description="The amount of messages you wanna delete")
+    @commands.has_permissions(manage_messages=True)
+    @commands.check(is_disabled_check)
+    async def clear(self, ctx: ApplicationContext, count: int):
+        await ctx.channel.purge(limit=count)
+        await ctx.respond(f"### `{count}` messages have been deleted !", ephemeral=True)
+
+    @commands.slash_command(name="report", description="Report someone, a bug or simply leave a feedback")
+    @commands.check(is_disabled_check)
+    @option(name="report_type", description="What kind of report are you making ?", choices=["user", "bug", "feedback"])
+    async def report(self, ctx: ApplicationContext, report_type: str):
+        await ctx.send_modal(ReportModal(title=f"Report form", report_type=report_type))
+
+    @commands.user_command(name="Report", description="Report someone, a bug or simply leave a feedback")
+    async def uc_report(self, ctx, user: User):
+        if user.bot:
+            await ctx.respond("You can't report bots", ephemeral=True)
+            return
+        await ctx.send_modal(ReportModal(title=f"Report form", report_type="user", attachement=user))
+
+    @commands.message_command(name="Report", description="Report someone, a bug or simply leave a feedback")
+    async def mc_report(self, ctx, message: Message):
+        if message.author.bot:
+            await ctx.respond("You can't report bot messages", ephemeral=True)
+            return
+        await ctx.send_modal(ReportModal(title=f"Report form", report_type="user", attachement=message))
 
 
 def setup(bot_):
