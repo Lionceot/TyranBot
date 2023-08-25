@@ -1,12 +1,10 @@
-from discord import Embed, Color, TextChannel, ApplicationContext, option, User, Member
+from discord import Embed, Color, ApplicationContext
 from discord.ext import commands
 from discord.commands import SlashCommandGroup, UserCommand, MessageCommand, SlashCommand
 from discord.ext.commands import Command
 
-import json
-from datetime import timedelta
-
-from main import get_parameter, time_now, MyBot, string_to_time, time_to_string
+from main import MyBot
+from custom_functions import get_parameter, is_disabled_check
 
 
 class Help(commands.Cog):
@@ -17,10 +15,11 @@ class Help(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         log_msg = "[COG] 'HelpCog' has been loaded"
-        self.bot.log_action(txt=log_msg)
+        self.bot.log_action(log_msg, self.bot.bot_logger)
 
-    @commands.command(name="help", usage="", description="Give information about commands")
-    async def help(self, ctx):
+    @commands.slash_command(name="help", usage="", description="Give information about commands")
+    @commands.check(is_disabled_check)
+    async def help(self, ctx: ApplicationContext):
         res = ""
         cogs_to_exclude = ["Admin", "Moderation", "Test", "Help"]
         cogs = [[cog, self.bot.get_cog(cog).get_commands()] for cog in self.bot.cogs if cog not in cogs_to_exclude]
@@ -44,7 +43,7 @@ class Help(commands.Cog):
         emb = Embed(color=Color.dark_orange(),
                     description="`< >` : required argument\n`[ ]` : optional argument\n\n" + res)
         emb.set_author(name="Help menu")
-        await ctx.reply(embed=emb)
+        await ctx.respond(embed=emb)
 
     @commands.command(name="admin_help", hidden=True)
     @commands.is_owner()

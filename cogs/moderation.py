@@ -1,14 +1,16 @@
-from discord import Embed, Color, TextChannel, ApplicationContext, option, User, Member
+from discord import Embed, Color, TextChannel, ApplicationContext, option, User, Member, Message
 from discord.ext import commands
 from discord.commands import SlashCommandGroup
 
 import json
 from datetime import timedelta
 
-from main import get_parameter, time_now, MyBot, string_to_time, time_to_string
+from main import MyBot
+from custom_functions import get_parameter, time_now, string_to_time, time_to_string, add_event, is_disabled_check
+from custom_views import ReportModal
 
 
-class ModerationCog(commands.Cog):
+class Moderation(commands.Cog):
 
     def __init__(self, bot_: MyBot):
         self.bot = bot_
@@ -16,19 +18,20 @@ class ModerationCog(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         log_msg = "[COG] 'ModerationCog' has been loaded"
-        self.bot.log_action(txt=log_msg)
+        self.bot.log_action(log_msg, self.bot.bot_logger)
 
     @commands.slash_command(name="warn")
     @option(name="user", description="The user you want to timeout", type=User)
     @option(name="reason", description="The reason why you want to timeout that user")
     @commands.guild_only()
+    @commands.check(is_disabled_check)
     async def warn(self, ctx: ApplicationContext, user: User, reason: str):
         await ctx.defer()
 
         author = ctx.author
 
         await ctx.respond(f"{user.mention} has been warned !", ephemeral=True)
-        self.bot.log_action(txt=f"{author} ({author.id}) has warned {user} ({user.id}) from {ctx.guild_id}")
+        self.bot.log_action(f"{author} ({author.id}) has warned {user} ({user.id}) from {ctx.guild_id}", self.bot.mod_logger)
 
         # Add to user record
         with open("json/moderation.json", "r", encoding="utf-8") as mod_file:
@@ -72,6 +75,7 @@ class ModerationCog(commands.Cog):
     @option(name="reason", description="The reason why you want to timeout that user")
     @commands.has_permissions(moderate_members=True)
     @commands.guild_only()
+    @commands.check(is_disabled_check)
     async def timeout(self, ctx: ApplicationContext, user: Member, duration: str, reason: str):
         await ctx.defer()
 
@@ -82,7 +86,7 @@ class ModerationCog(commands.Cog):
         await user.timeout_for(duration=timedelta(seconds=timeout_time), reason=reason)
 
         await ctx.respond(f"{user.mention} has been timeout !", ephemeral=True)
-        self.bot.log_action(txt=f"{author} ({author.id}) has timeout {user} ({user.id}) from {ctx.guild_id}")
+        self.bot.log_action(f"{author} ({author.id}) has timeout {user} ({user.id}) from {ctx.guild_id}", self.bot.mod_logger)
 
         # Add to user record
         with open("json/moderation.json", "r", encoding="utf-8") as mod_file:
@@ -121,6 +125,7 @@ class ModerationCog(commands.Cog):
     @option(name="reason", description="The reason why you want to mute that user")
     @commands.has_permissions(moderate_members=True)
     @commands.guild_only()
+    @commands.check(is_disabled_check)
     async def tempmute(self, ctx: ApplicationContext, user: Member, duration: str, reason: str):
         await ctx.defer()
 
@@ -147,7 +152,7 @@ class ModerationCog(commands.Cog):
             with open("json/config.json", "w", encoding="utf-8") as config_file:
                 json.dump(config, config_file, indent=2)
 
-            self.bot.log_action(txt=f"New mute role ({mute_role.id}) in configuration for guild '{guild.id}'")
+            self.bot.log_action(f"New mute role ({mute_role.id}) in configuration for guild '{guild.id}'", self.bot.mod_logger)
 
         else:
             mute_role = guild.get_role(mute_role_id)
@@ -182,22 +187,12 @@ class ModerationCog(commands.Cog):
             "guild": guild.id
         }
 
-        with open("json/events.json", "r", encoding="utf-8") as event_file:
-            events = json.load(event_file)
-
-        if end_timestamp in events:
-            events[end_timestamp].append(new_event)
-
-        else:
-            events[end_timestamp] = [new_event]
-
-        with open("json/events.json", "w", encoding="utf-8") as event_file:
-            json.dump(events, event_file, indent=2)
+        add_event(end_timestamp, new_event)
 
         await user.add_roles(mute_role)
 
         await ctx.respond(f"{user.mention} has been muted for {duration} !", ephemeral=True)
-        self.bot.log_action(txt=f"{author} ({author.id}) has muted {user} ({user.id}) from {ctx.guild_id}")
+        self.bot.log_action(f"{author} ({author.id}) has muted {user} ({user.id}) from {ctx.guild_id}", self.bot.mod_logger)
 
         log_emb = Embed(color=Color.teal(), description=f"{author.mention} has muted {user.mention} for {duration} because '{reason}'")
         log_emb.add_field(name="Details", value=f"• Author id : {author.id} \n• User id : {user.id}")
@@ -211,6 +206,7 @@ class ModerationCog(commands.Cog):
     @option(name="reason", description="The reason why you want to mute that user")
     @commands.has_permissions(moderate_members=True)
     @commands.guild_only()
+    @commands.check(is_disabled_check)
     async def mute(self, ctx: ApplicationContext, user: Member, reason: str):
         await ctx.defer()
         log_channel_id, bot_version, mute_role_id = get_parameter(["moderation_logs", "version", "mute_role"])
@@ -233,7 +229,7 @@ class ModerationCog(commands.Cog):
             with open("json/config.json", "w", encoding="utf-8") as config_file:
                 json.dump(config, config_file, indent=2)
 
-            self.bot.log_action(txt=f"New mute role ({mute_role.id}) in configuration for guild '{guild.id}'")
+            self.bot.log_action(f"New mute role ({mute_role.id}) in configuration for guild '{guild.id}'", self.bot.mod_logger)
 
         else:
             mute_role = guild.get_role(mute_role_id)
@@ -262,7 +258,7 @@ class ModerationCog(commands.Cog):
         await user.add_roles(mute_role)
 
         await ctx.respond(f"{user.mention} has been muted !", ephemeral=True)
-        self.bot.log_action(txt=f"{author} ({author.id}) has muted {user} ({user.id}) from {ctx.guild_id}")
+        self.bot.log_action(f"{author} ({author.id}) has muted {user} ({user.id}) from {ctx.guild_id}", self.bot.mod_logger)
 
         log_emb = Embed(color=Color.teal(), description=f"{author.mention} has muted {user.mention} because '{reason}'")
         log_emb.add_field(name="Details", value=f"• Author id : {author.id} \n• User id : {user.id}")
@@ -276,6 +272,7 @@ class ModerationCog(commands.Cog):
     @option(name="reason", description="The reason why you want to kick that user")
     @commands.has_permissions(kick_members=True)
     @commands.guild_only()
+    @commands.check(is_disabled_check)
     async def kick(self, ctx: ApplicationContext, user: Member, reason: str):
         await ctx.defer()
         log_channel_id, bot_version = get_parameter(["moderation_logs", "version"])
@@ -307,7 +304,7 @@ class ModerationCog(commands.Cog):
         await user.kick(reason=reason)
 
         await ctx.respond(f"{user.mention} has been kicked !", ephemeral=True)
-        self.bot.log_action(txt=f"{author} ({author.id}) has banned {user} ({user.id}) from {ctx.guild_id}")
+        self.bot.log_action(f"{author} ({author.id}) has banned {user} ({user.id}) from {ctx.guild_id}", self.bot.mod_logger)
 
         log_emb = Embed(color=Color.teal(), description=f"{author.mention} has kicked {user.mention} because '{reason}'")
         log_emb.add_field(name="Details", value=f"• Author id : {author.id} \n• User id : {user.id}")
@@ -322,6 +319,7 @@ class ModerationCog(commands.Cog):
     @option(name="reason", description="The reason why you want to ban that user")
     @commands.has_permissions(ban_members=True)
     @commands.guild_only()
+    @commands.check(is_disabled_check)
     async def tempban(self, ctx: ApplicationContext, user: Member, duration: str, reason: str):
         await ctx.defer()
         ban_time = string_to_time(duration)
@@ -361,22 +359,12 @@ class ModerationCog(commands.Cog):
                 "guild": ctx.guild_id
             }
 
-            with open("json/events.json", "r", encoding="utf-8") as event_file:
-                events = json.load(event_file)
-
-            if end_timestamp in events:
-                events[end_timestamp].append(new_event)
-
-            else:
-                events[end_timestamp] = [new_event]
-
-            with open("json/events.json", "w", encoding="utf-8") as event_file:
-                json.dump(events, event_file, indent=2)
+            add_event(end_timestamp, new_event)
 
         await user.ban(reason=reason)
 
         await ctx.respond(f"{user.mention} has been banned !", ephemeral=True)
-        self.bot.log_action(txt=f"{author} ({author.id}) has banned {user} ({user.id}) from {ctx.guild_id}")
+        self.bot.log_action(f"{author} ({author.id}) has banned {user} ({user.id}) from {ctx.guild_id}", self.bot.mod_logger)
 
         log_emb = Embed(color=Color.teal(),
                         description=f"{author.mention} has banned {user.mention} because '{reason}'")
@@ -391,6 +379,7 @@ class ModerationCog(commands.Cog):
     @option(name="reason", description="The reason why you want to ban that user")
     @commands.has_permissions(ban_members=True)
     @commands.guild_only()
+    @commands.check(is_disabled_check)
     async def ban(self, ctx: ApplicationContext, user: Member, reason: str):
         await ctx.defer()
         log_channel_id, bot_version = get_parameter(["moderation_logs", "version"])
@@ -422,7 +411,7 @@ class ModerationCog(commands.Cog):
         await user.ban(reason=reason)
 
         await ctx.respond(f"{user.mention} has been banned !", ephemeral=True)
-        self.bot.log_action(txt=f"{author} ({author.id}) has banned {user} ({user.id}) from {ctx.guild_id}")
+        self.bot.log_action(f"{author} ({author.id}) has banned {user} ({user.id}) from {ctx.guild_id}", self.bot.mod_logger)
 
         log_emb = Embed(color=Color.teal(),
                         description=f"{author.mention} has banned {user.mention} because '{reason}'")
@@ -437,6 +426,7 @@ class ModerationCog(commands.Cog):
     @logs_group.command(name="see")
     @option(name="user", description="The user whose logs you're looking for")
     @commands.guild_only()
+    @commands.check(is_disabled_check)
     async def logs_see(self, ctx: ApplicationContext, user: User):
         with open("json/moderation.json", "r", encoding="utf-8") as log_file:
             logs = json.load(log_file)
@@ -470,6 +460,7 @@ class ModerationCog(commands.Cog):
     @option(name="user", description="The user whose logs you want to delete")
     @commands.is_owner()
     @commands.guild_only()
+    @commands.check(is_disabled_check)
     async def logs_clear(self, ctx: ApplicationContext, user: User):
         with open("json/moderation.json", "r", encoding="utf-8") as log_file:
             logs = json.load(log_file)
@@ -492,6 +483,7 @@ class ModerationCog(commands.Cog):
     @option(name="channel", description="The channel you want to lock", required=False)
     @commands.has_permissions(manage_channels=True)
     @commands.guild_only()
+    @commands.check(is_disabled_check)
     async def lock_channel(self, ctx: ApplicationContext, channel: TextChannel = None):
 
         if channel is None:
@@ -504,12 +496,13 @@ class ModerationCog(commands.Cog):
 
         emb = Embed(color=Color.red(), description=f":lock: <#{channel.id}> has been locked !")
         await ctx.respond(embed=emb)
-        self.bot.log_action(txt=f"{ctx.author} ({ctx.author.id}) has locked channel {channel} ({channel.id}) from {ctx.guild_id}")
+        self.bot.log_action(f"{ctx.author} ({ctx.author.id}) has locked channel {channel} ({channel.id}) from {ctx.guild_id}", self.bot.mod_logger)
 
     @commands.slash_command(name="unlock")
     @option(name="channel", description="The channel you want to unlock", required=False)
     @commands.has_permissions(manage_channels=True)
     @commands.guild_only()
+    @commands.check(is_disabled_check)
     async def unlock_channel(self, ctx: ApplicationContext, channel: TextChannel = None):
 
         if channel is None:
@@ -522,11 +515,12 @@ class ModerationCog(commands.Cog):
 
         emb = Embed(color=Color.green(), description=f":unlock: <#{channel.id}> has been unlocked !")
         await ctx.respond(embed=emb)
-        self.bot.log_action(txt=f"{ctx.author} ({ctx.author.id}) has unlocked channel {channel} ({channel.id}) from {ctx.guild_id}")
+        self.bot.log_action(f"{ctx.author} ({ctx.author.id}) has unlocked channel {channel} ({channel.id}) from {ctx.guild_id}", self.bot.mod_logger)
 
     @commands.slash_command(name="lockdown")
     @commands.has_permissions(administrator=True)
     @commands.guild_only()
+    @commands.check(is_disabled_check)
     async def lockdown(self, ctx: ApplicationContext):
         guild = ctx.guild
         default_role = guild.default_role
@@ -541,8 +535,36 @@ class ModerationCog(commands.Cog):
 
         emb = Embed(color=Color.red(), description=f":stop_sign: The server has been put under lockdown.")
         await ctx.respond(embed=emb)
-        self.bot.log_action(txt=f"{ctx.author} ({ctx.author.id}) has put guild {ctx.guild_id} under lockdown")
+        self.bot.log_action(f"{ctx.author} ({ctx.author.id}) has put guild {ctx.guild_id} under lockdown", self.bot.mod_logger)
+
+    @commands.slash_command(name="clear")
+    @option(name="count", description="The amount of messages you wanna delete")
+    @commands.has_permissions(manage_messages=True)
+    @commands.check(is_disabled_check)
+    async def clear(self, ctx: ApplicationContext, count: int):
+        await ctx.channel.purge(limit=count)
+        await ctx.respond(f"### `{count}` messages have been deleted !", ephemeral=True)
+
+    @commands.slash_command(name="report", description="Report someone, a bug or simply leave a feedback")
+    @commands.check(is_disabled_check)
+    @option(name="report_type", description="What kind of report are you making ?", choices=["user", "bug", "feedback"])
+    async def report(self, ctx: ApplicationContext, report_type: str):
+        await ctx.send_modal(ReportModal(title=f"Report form", report_type=report_type))
+
+    @commands.user_command(name="Report", description="Report someone, a bug or simply leave a feedback")
+    async def uc_report(self, ctx, user: User):
+        if user.bot:
+            await ctx.respond("You can't report bots", ephemeral=True)
+            return
+        await ctx.send_modal(ReportModal(title=f"Report form", report_type="user", attachement=user))
+
+    @commands.message_command(name="Report", description="Report someone, a bug or simply leave a feedback")
+    async def mc_report(self, ctx, message: Message):
+        if message.author.bot:
+            await ctx.respond("You can't report bot messages", ephemeral=True)
+            return
+        await ctx.send_modal(ReportModal(title=f"Report form", report_type="user", attachement=message))
 
 
 def setup(bot_):
-    bot_.add_cog(ModerationCog(bot_))
+    bot_.add_cog(Moderation(bot_))

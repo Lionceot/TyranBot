@@ -1,21 +1,21 @@
 from dotenv import load_dotenv
 from os import listdir, getenv
-from logtail import LogtailHandler
+# from logtail import LogtailHandler
 import logging
 import asyncio
 
 import json
 import mysql.connector
-from pytz import timezone
-from datetime import datetime
 
-import discord
-from discord import Embed, Color, Member, Intents, Activity, ActivityType, ApplicationContext, DiscordException, Guild
+from discord import Embed, Color, Intents, ApplicationContext, Guild, AllowedMentions, Activity, ActivityType, Status, \
+    ExtensionNotFound, ExtensionNotLoaded, ExtensionAlreadyLoaded
 from discord.ext import commands, tasks
 from discord.errors import Forbidden
-from discord.ext.commands import errors, Context
+from discord.ext.commands import errors
 
-from custom_errors import NotEnoughMoney, UserIsBot, UnknownObject, MaxAmountReached, IncorrectBetValue, InvalidTimeString, HowDidYouGetHere
+from custom_errors import NotEnoughMoney, UserIsBot, UnknownObject, MaxAmountReached, IncorrectBetValue, \
+    InvalidTimeString, HowDidYouGetHere, CommandDisabled, CantBuyTurnip, CantSellTurnip, UnknownCode, CodeLimitReached
+from custom_functions import time_now, get_text, get_parameter, var_set
 
 
 load_dotenv()
@@ -45,131 +45,13 @@ def in_database(user):
 async def new_player(user):
     exist = in_database(user)
     if not exist:
+        bot.log_action(f"[ECO] Creating database profile for {user.name} ({user.id})", bot.eco_logger)
         now = int(time_now().timestamp())
         curA.execute(f"INSERT INTO users (discordID, coins, language, created) VALUES ({user.id}, 100, 'fr', {now})")
         curB.execute(f"INSERT INTO dailyrecord (discordID, streak, ready, nbDaily, claimed) VALUES ({user.id}, 0, 1, 0, 0)")
         curC.execute(f"INSERT INTO stats (discordID) VALUES ({user.id})")
-        curD.execute(f"INSERT INTO potato (discordID) VALUES ({user.id})")
+        curD.execute(f"INSERT INTO turnip (discordID) VALUES ({user.id})")
         db.commit()
-
-
-def time_now():
-    return datetime.now(tz=timezone("Europe/Paris"))
-
-
-def get_parameter(param):
-    with open("json/config.json", "r", encoding="utf-8") as config_file:
-        config = json.load(config_file)
-
-    if isinstance(param, str):
-        try:
-            return config[param]
-        except KeyError:
-            return "KeyError"
-
-    else:
-        items = []
-        for item in param:
-            if item in config:
-                items.append(config[item])
-            else:
-                items.append(None)
-        return items
-
-
-def get_text(reference: str, lang: str):
-    # TODO : make it open the corresponding file and return the associated text (return reference if error)
-    #   if lang == "", open english file
-    return reference
-
-
-def key_with_lowest_value(dico: dict):
-    min_value = None
-    min_key = None
-    for item in dico.items():
-        try:
-            if item[1] < min_value:
-                min_value = item[1]
-                min_key = item[0]
-
-        except TypeError:
-            min_value = item[1]
-            min_key = item[0]
-    return min_key
-
-
-def sort_dict_by_value(d, reverse=False):
-    return dict(sorted(d.items(), key=lambda x: x[1], reverse=reverse))
-
-
-def string_to_time(raw_time: str):
-    time_dict = {
-        "s": 1,  # second
-        "m": 60,  # minute
-        "h": 3600,  # hour
-        "d": 3600 * 24,  # day
-        "w": 3600 * 24 * 7,  # week
-        "y": 3600 * 24 * 7 * 28 * 12,  # year
-    }
-    times = raw_time.split(' ')
-    total = 0
-
-    for time in times:
-        if time == '':
-            continue
-        indicator = time[-1]
-
-        if indicator not in time_dict:
-            raise InvalidTimeString(reason="Invalid indicator", raw_input=raw_time)
-
-        try:
-            number = eval(time[:-1])
-
-        except SyntaxError:
-            raise InvalidTimeString(reason="Invalid time", raw_input=raw_time)
-
-        if number < 0:
-            raise InvalidTimeString(reason="Negative time isn't allowed", raw_input=raw_time)
-
-        total += number * time_dict[indicator]
-
-    return total
-
-
-def time_to_string(raw_time: int):
-    result = ""
-
-    if raw_time >= 3600 * 24 * 365:
-        year_amt = raw_time // (3600 * 24 * 365)
-        raw_time -= year_amt * (3600 * 24 * 365)
-        result += f"{year_amt}y "
-
-    if raw_time >= 3600 * 24 * 7:
-        week_amt = raw_time // (3600 * 24 * 7)
-        raw_time -= week_amt * (3600 * 24 * 7)
-        result += f"{week_amt}w "
-
-    if raw_time >= 3600 * 24:
-        day_amt = raw_time // (3600 * 24)
-        raw_time -= day_amt * (3600 * 24)
-        result += f"{day_amt}d "
-
-    if raw_time >= 3600:
-        hour_amt = raw_time // 3600
-        raw_time -= hour_amt * 3600
-        result += f"{hour_amt}h "
-
-    if raw_time > 60:
-        minute_amt = raw_time // 60
-        raw_time -= minute_amt * 60
-        result += f"{minute_amt}m "
-
-    if raw_time > 1:
-        second_amt = raw_time
-        raw_time -= second_amt
-        result += f"{second_amt}s "
-
-    return result[:-1]
 
 
 class MyBot(commands.Bot):
@@ -185,77 +67,138 @@ class MyBot(commands.Bot):
             owner_ids=config['owners'],
             debug_servers=config['debug_server_list'],
             help_command=None,
-            allowed_mentions=discord.AllowedMentions(
-                everyone=False,
+            allowed_mentions=AllowedMentions(
+                everyone=True,
                 users=True,
-                roles=False,
+                roles=True,
                 replied_user=True
             ),
             slash_commands=True,
-            activity=Activity(name="Starting ..."),
-            status=discord.Status.idle
+            status=Status.idle
         )
 
         self.ignored_errors = [errors.CommandNotFound, errors.NoPrivateMessage, TimeoutError, asyncio.TimeoutError]
 
+        ###############################
+        #       CYCLING STATUS        #
+        ###############################
+        # "playing": discord.Game(name=text),
+        # "streaming": discord.Activity(type=discord.ActivityType.streaming, name=text, url=url),
+        # "listening": discord.Activity(type=discord.ActivityType.listening, name=text),
+        # "watching": discord.Activity(type=discord.ActivityType.watching, name=text),
+        # "custom": Activity(type=ActivityType.custom, details=text)
+        #
+        # "online": Status.online,
+        # "offline": Status.offline,
+        # "idle": Status.idle,
+        # "dnd": Status.dnd
+        #
+        # Activity(type=ActivityType.watching, name="la version 0.3.0",
+        #          assets={"large_image": "large-tyranbot"},                        # useless
+        #          state="...",                                                     # 42 char max
+        #          details="details",                                               # only for custom status
+        #          timestamps=[now, now + 600],                                     # useless
+        #          party={"id": "party-id", "size": [1, 10]},                       # useless
+        #          buttons=[{"label": "Press me", "url": "https://discord.gg"}],    # useless
+        #          emoji=self.get_emoji(868959496389656596)                         # useless
+        # )
+
+        self.status_messages_index = 0
+        self.time_between_messages = 15
+        self.status_messages = [
+            Activity(type=ActivityType.watching,
+                     name="la version 0.3.0",
+                     state="/changelog pour la liste des changements",
+                     ),
+            Activity(type=ActivityType.watching,
+                     name="le cours du navet",
+                     state="/turnip info pour plus de détails"
+                     )
+        ]
+
+        ###############################
+        #           LOGGING           #
+        ###############################
+
         self.log_file_name = time_now().strftime('%Y-%m-%d_%H.%M.%S')
 
-        logging.basicConfig(filename=f"logs/{self.log_file_name}.log", level=20)
+        logging.basicConfig(filename=f"logs/bot/{self.log_file_name}.log", level=20)
         logging.getLogger("discord").setLevel(logging.INFO)
         logging.getLogger("discord.http").setLevel(logging.WARNING)
 
-        self.logger = logging.getLogger(__name__)
+        self.bot_logger = logging.getLogger("BOT")
+        self.cmd_logger = logging.getLogger("CMD")
+        self.admin_logger = logging.getLogger("ADMIN")
+        self.mod_logger = logging.getLogger("MOD")
+        self.eco_logger = logging.getLogger("ECO")
+        self.turnip_logger = logging.getLogger("TNP")
+        self.code_logger = logging.getLogger("CODE")
+
         # self.logger.handlers = [LogtailHandler(source_token=getenv("LOGTAIL_TOKEN"))]
+
+        ##############################
+        #        LOADING COGS        #
+        ##############################
 
         for filename in listdir('./cogs'):
             if filename.endswith('.py'):
                 self.load_extension(f"cogs.{filename[:-3]}")
 
-    def log_action(self, txt: str, level: int = 20):
-        self.logger.log(msg=txt, level=level)
-        color_code = {
-            20: "\033[0;34m",
-            30: "\033[0;33m",
-            40: "\033[7m\033[1;31m",
+    def log_action(self, txt: str, logger: logging.Logger, level: int = 20):
+        logger.log(msg=txt, level=level)
+
+        logger_color = {
+            self.bot_logger: "\033[0;36m",
+            self.cmd_logger: "\033[0;37m",
+            self.admin_logger: "\033[1m\033[1;32m",
+            self.mod_logger: "\033[0;34m",
+            self.eco_logger: "\033[0;32m",
+            self.turnip_logger: "\033[0;32m",
+            self.code_logger: "\033[1;35m",
+            30: "\033[1;33m",
+            40: "\033[1;31m",
             50: "\033[7m\033[1;31m"
         }
-        if level in color_code:
-            txt = color_code[level] + txt + "\033[0m"
+
+        if level >= 30 and level in logger_color:
+            txt = logger_color[level] + txt + "\033[0m"
+
+        else:
+            txt = logger_color[logger] + txt + "\033[0m"
+
         print(txt)
 
     async def on_ready(self):
         start_msg = f"[BOT] Bot connected as {self.user}"
-        self.log_action(txt=start_msg)
+        self.log_action(start_msg, self.bot_logger)
 
-        await event_loop.start()
-
-        # await self.change_presence(activity=discord.Game(name="distribuer les cartes"), status=Status.dnd)
-
-        # print("-----------------------")
-        # for guild in self.guilds:
-        #     print(f"{guild.name} [id: {guild.id}, owner: {guild.owner}|{guild.owner_id}]")
-        # print("-----------------------")
-
-        # guild = self.get_guild(925802591894507541)
-        # await guild.leave()
+        await asyncio.gather(status_loop.start(), event_loop.start())
 
     async def on_guild_join(self, guild: Guild):
         text = f"Guild {guild.name} joined. [id: {guild.id}, owner: {guild.owner}|{guild.owner_id}]"
-        self.log_action(text)
+        self.log_action(text, self.bot_logger)
 
     async def on_application_command_completion(self, ctx: ApplicationContext):
         args = " ".join([f"[{option['name']}:{option['value']}]" for option in
                          ctx.selected_options]) if ctx.selected_options is not None else ''
-        log_msg = f"{ctx.author} ({ctx.author.id}) used app_command '{ctx.command}' {args}"
-        self.log_action(txt=log_msg, level=25)
+        log_msg = f"{ctx.author.name} ({ctx.author.id}) used app_command '{ctx.command.qualified_name}' {args}"
+        self.log_action(log_msg, self.cmd_logger)
 
-    # TODO: handle cooldown errors (not in application commands)
-    async def on_command_error(self, ctx: Context, exception: errors.CommandError):
+    ################################
+    #        ERROR HANDLING        #
+    ################################
+
+    async def on_command_error(self, ctx, exception: errors.CommandError):
         if exception in self.ignored_errors:
-            pass
+            return
 
-        elif isinstance(exception, errors.NotOwner):
-            emb = Embed(color=Color.red(), description="You are not my owner")
+        user = ctx.user
+        await new_player(user)
+        curA.execute(f"SELECT language FROM users WHERE discordID = {user.id}")
+        user_lang = curA.fetchone()[0]
+
+        if isinstance(exception, errors.NotOwner):
+            emb = Embed(color=Color.red(), description="This command is for bot owners only.")
             await ctx.reply(embed=emb, delete_after=5)
 
         elif isinstance(exception, errors.RoleNotFound):
@@ -277,10 +220,25 @@ class MyBot(commands.Bot):
             emb = Embed(color=Color.red(), description="Bots can't interact with the economy")
             await ctx.reply(embed=emb)
 
+        elif isinstance(exception, TimeoutError):
+            emb = Embed(color=Color.red(), description="You took too long. Command has been canceled.")
+            await ctx.reply(embed=emb, delete_after=10)
+
         else:
-            emb = Embed(color=Color.red(), description="unexpected error")
-            self.log_action(txt=f"Unhandled error occurred ({type(exception)}) : {exception}", level=50)
-            raise exception  # used when debugging
+            self.log_action(f"Unhandled error occurred ({type(exception)}) : {exception}", self.cmd_logger, 50)
+            adm_emb = Embed(color=Color.red(), description=f"Error `{type(exception)}` cannot be handled. "
+                                                           f"Check console for more details.")
+            emb = Embed(color=Color.red(), description=get_text("commands.unexpected_error", user_lang))
+
+            if ctx.author.id in bot.owner_ids:
+                await ctx.reply(embed=adm_emb)
+
+            else:
+                await ctx.reply(embed=emb)
+                owner = self.get_user(444504367152889877)
+                await owner.send(embed=adm_emb)
+
+            raise exception
 
     async def on_application_command_error(self, ctx: ApplicationContext, exception: errors.CommandError):
         if exception in self.ignored_errors:
@@ -310,11 +268,11 @@ class MyBot(commands.Bot):
             emb = Embed(color=Color.red(), description=get_text("command.incorrect_bet", user_lang))
 
         elif isinstance(exception, errors.CommandOnCooldown):
-            # "lang: add time formatting for cooldown value
+            # add time formatting for cooldown value
             emb = Embed(color=Color.red(), description=get_text("command.on_cooldown", user_lang))
 
         elif isinstance(exception, InvalidTimeString):
-            # "lang: insert reason and raw input
+            # insert reason and raw input
             emb = Embed(color=Color.red(), description=get_text("command.invalid_string", user_lang))
 
         elif isinstance(exception, Forbidden):
@@ -323,10 +281,37 @@ class MyBot(commands.Bot):
         elif isinstance(exception, HowDidYouGetHere):
             emb = Embed(color=Color.fuchsia(),  description=get_text("command.howdidyougethere", user_lang))
 
+        elif isinstance(exception, CantBuyTurnip):
+            emb = Embed(color=Color.fuchsia(),  description=get_text("turnip.cantbuy", user_lang))
+
+        elif isinstance(exception, CantSellTurnip):
+            emb = Embed(color=Color.fuchsia(),  description=get_text("turnip.cantsell", user_lang))
+
+        elif isinstance(exception, CommandDisabled):
+            # emb = Embed(color=Color.fuchsia(),  description=get_text("command.disabled", user_lang))
+            emb = Embed(color=Color.fuchsia(), description=f"Command disabled ({exception.reason})")
+
+        elif isinstance(exception, UnknownCode):
+            emb = Embed(color=Color.red(),  description=get_text("error.unknown_code", user_lang))
+
+        elif isinstance(exception, CodeLimitReached):
+            emb = Embed(color=Color.red(),  description=get_text("error.code_limit_reached", user_lang))
+
         else:
+            self.log_action(f"Unhandled error occurred ({type(exception)}) : {exception}", self.cmd_logger, 50)
+            adm_emb = Embed(color=Color.red(), description=f"The following error couldn't be handled. Check console for more details."
+                                                           f"\n`{type(exception)} : {exception}`")
             emb = Embed(color=Color.red(), description=get_text("commands.unexpected_error", user_lang))
-            self.log_action(txt=f"Unhandled error occurred ({type(exception)}) : {exception}", level=50)
-            raise exception  # used when debugging
+
+            if ctx.author.id in bot.owner_ids:
+                await ctx.respond(embed=adm_emb, ephemeral=True)
+
+            else:
+                await ctx.respond(embed=emb, ephemeral=True)
+                owner = self.get_user(444504367152889877)
+                await owner.send(embed=adm_emb)
+
+            raise exception
 
         await ctx.respond(embed=emb, ephemeral=True)
 
@@ -342,41 +327,92 @@ async def ping(ctx: ApplicationContext):
     limit = get_parameter('ping_limit')
 
     if latency > limit:
-        bot.log_action(txt=f"Bot ping is at {latency} ms", level=30)
+        bot.log_action(f"[BOT] Bot ping is at {latency} ms", bot.bot_logger, 30)
 
 
-@tasks.loop(seconds=2)
+@tasks.loop(seconds=bot.time_between_messages)
+async def status_loop():
+    index = bot.status_messages_index
+    await bot.change_presence(activity=bot.status_messages[index])
+
+    index += 1
+    if index >= len(bot.status_messages):
+        index = 0
+    bot.status_messages_index = index
+
+
+@status_loop.before_loop
+async def before_status_loop():
+    bot.log_action("[LOOP] Status loop has started.", bot.bot_logger)
+
+
+@status_loop.after_loop
+async def after_status_loop():
+    bot.log_action("[LOOP] Status loop has stopped.", bot.bot_logger)
+
+
+@tasks.loop(seconds=30)
 async def event_loop():
     now = round(time_now().timestamp())
 
-    with open("events.json", "r", encoding="utf-8") as event_file:
+    with open("json/events.json", "r", encoding="utf-8") as event_file:
         events = json.load(event_file)
 
     for timestamp in events:
-        if timestamp <= now:
+        if int(timestamp) <= now:
             for item in events[timestamp]:
-                guild = bot.get_guild(item['guild'])
-                user = guild.get_member(item['user'])
+                item_type = item['type']
 
-                if item['type'] == 'tempmute':
+                if item_type == 'tempmute':
+                    guild = bot.get_guild(item['guild'])
+                    user = guild.get_member(item['user'])
                     mute_role = guild.get_role(get_parameter('mute_role'))
-                    await user.remove_roles(mute_role)
 
-                elif item['type'] == 'tempban':
+                    await user.remove_roles(mute_role, reason="End of sentence")
+                    bot.log_action(f"[MOD] {user} has been un-muted (automatically)", bot.mod_logger)
+
+                elif item_type == 'tempban':
+                    guild = bot.get_guild(item['guild'])
+                    user = guild.get_member(item['user'])
+
                     await user.unban(reason="End of sentence")
+                    bot.log_action(f"[MOD] {user} has been un-banned (automatically)", bot.mod_logger)
+
+                elif item_type == "coins-boost":
+                    var_set("global_coins_boost", item['value'])
+                    bot.log_action(f"[ECO] Global boost value is now {item['value']}", bot.eco_logger)
+
+                elif item_type == "code-usage":
+                    code = item['code']
+                    limit = item['limit']
+                    with open("json/codes.json", "r", encoding="utf-8") as code_file:
+                        codes = json.load(code_file)
+                    codes[code]['usage_limit'][0] = limit
+                    with open("json/codes.json", "w", encoding="utf-8") as code_file:
+                        json.dump(codes, code_file, indent=2)
+                    bot.log_action(f"[CODE] Usage limit of code '{code}' has been changed to '{limit}'", bot.code_logger)
+
+                else:
+                    bot.log_action(f"[LOOP] Unknown event type : '{item_type}'", bot.bot_logger, 30)
+                    continue
+
+    events = {timestamp: events[timestamp] for timestamp in events if int(timestamp) > now}
+
+    with open("json/events.json", "w", encoding="utf-8") as events_file:
+        json.dump(events, events_file, indent=2)
 
 
 @event_loop.before_loop
 async def before_event_loop():
-    bot.log_action(txt="[LOOP] Event loop has started.")
+    bot.log_action("[LOOP] Event loop has started.", bot.bot_logger)
 
 
 @event_loop.after_loop
 async def after_event_loop():
-    bot.log_action(txt="[LOOP] Event loop has stopped.")
+    bot.log_action("[LOOP] Event loop has stopped.", bot.bot_logger)
 
 
-@bot.slash_command(name="reload", description="Redémarre une cog", brief="Reload a cog", hidden=True, guild_ids=[733722460771581982])
+@bot.slash_command(name="reload", description="Redémarre une cog", brief="Reload a cog", hidden=True)
 @commands.is_owner()
 async def reload(ctx: ApplicationContext, extension=None):
     if not extension:
@@ -385,53 +421,59 @@ async def reload(ctx: ApplicationContext, extension=None):
                 try:
                     bot.reload_extension(f"cogs.{filename_[:-3]}")
                     await ctx.respond(f"> Cog `{filename_[:-3]}` successfully reloaded", ephemeral=True)
+                    bot.log_action(f"[COG] Cog '{extension}' has been reloaded", bot.bot_logger)
 
-                except discord.ExtensionNotLoaded:
+                except ExtensionNotLoaded:
                     bot.load_extension(f"cogs.{filename_[:-3]}")
                     await ctx.respond(f"> Cog `{filename_[:-3]}` successfully loaded", ephemeral=True)
+                    bot.log_action(f"[COG] Cog '{extension}' has been loaded", bot.bot_logger)
 
     else:
         try:
             bot.reload_extension(f"cogs.{extension}")
             await ctx.respond(f"> Cog `{extension}` successfully reloaded", ephemeral=True)
+            bot.log_action(f"[COG] Cog '{extension}' has been reloaded", bot.bot_logger)
 
-        except discord.ExtensionNotLoaded:
+        except ExtensionNotLoaded:
             try:
                 bot.load_extension(f"cogs.{extension}")
                 await ctx.respond(f"> Cog `{extension}` successfully loaded", ephemeral=True)
+                bot.log_action(f"[COG] '{extension}' has been loaded", bot.bot_logger)
 
-            except discord.ExtensionNotFound:
+            except ExtensionNotFound:
                 await ctx.respond(f"> Cog `{extension}` not found", ephemeral=True)
 
 
-@bot.slash_command(name="load", description="Charge une cog", brief="Load a cog", hidden=True, guild_ids=[733722460771581982])
+@bot.slash_command(name="load", description="Charge une cog", brief="Load a cog", hidden=True)
 @commands.is_owner()
 async def load(ctx: ApplicationContext, extension=None):
     try:
         bot.load_extension(f"cogs.{extension}")
         await ctx.respond(f"> Cog `{extension}` successfully loaded", ephemeral=True)
+        bot.log_action(f"[COG] Cog '{extension}' has been loaded", bot.bot_logger)
 
-    except discord.ExtensionNotFound:
+    except ExtensionNotFound:
         await ctx.respond(f"> Cog `{extension}` not found", ephemeral=True)
 
-    except discord.ExtensionAlreadyLoaded:
+    except ExtensionAlreadyLoaded:
         await ctx.respond(f"> Cog `{extension}` already loaded", ephemeral=True)
 
 
-@bot.slash_command(name="unload", description="Décharge une cog", brief="Unload a cog", hidden=True, guild_ids=[733722460771581982])
+@bot.slash_command(name="unload", description="Décharge une cog", brief="Unload a cog", hidden=True)
 @commands.is_owner()
 async def unload(ctx: ApplicationContext, extension=None):
     try:
         bot.unload_extension(f"cogs.{extension}")
         await ctx.respond(f"> Cog `{extension}` successfully unloaded", ephemeral=True)
+        bot.log_action(f"[COG] Cog '{extension}' has been unloaded", bot.bot_logger)
 
-    except discord.ExtensionNotLoaded:
+    except ExtensionNotLoaded:
         await ctx.respond(f"> Cog `{extension}` not loaded", ephemeral=True)
 
-    except discord.ExtensionNotFound:
+    except ExtensionNotFound:
         await ctx.respond(f"> Cog `{extension}` not found", ephemeral=True)
 
 
 if __name__ == '__main__':
     bot.run(getenv("BOT_TOKEN"))
-    bot.log_action(txt="[BOT] Bot closed.")
+    bot.log_action("[BOT] Bot closed.", bot.bot_logger)
