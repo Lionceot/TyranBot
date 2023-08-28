@@ -1,6 +1,5 @@
 from dotenv import load_dotenv
 from os import listdir, getenv
-# from logtail import LogtailHandler
 import logging
 import asyncio
 
@@ -133,8 +132,6 @@ class MyBot(commands.Bot):
         self.eco_logger = logging.getLogger("ECO")
         self.turnip_logger = logging.getLogger("TNP")
         self.code_logger = logging.getLogger("CODE")
-
-        # self.logger.handlers = [LogtailHandler(source_token=getenv("LOGTAIL_TOKEN"))]
 
         ##############################
         #        LOADING COGS        #
