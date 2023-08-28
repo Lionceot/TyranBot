@@ -1578,14 +1578,14 @@ class Turnip(commands.Cog):
         turnip_sold = rowA[1]
 
         if self.can_buy:
-            end_buy_phase = self.week_started_timestamp + 24 * 3600 - 1
+            end_buy_phase = round(self.week_started_timestamp + 24 * 3600 - 1)
             emb = Embed(color=0xfaf6e8,
                         description=f"Vous pouvez actuellement __**acheter**__ des navets et ce jusqu'au <t:{end_buy_phase}>\n\n"
                                     f"**Prix d'achat :** {currency_logo} {self.buy_price}"
                                     f"\n\nVous avez {turnip_logo} {turnip_bought - turnip_sold}.")
 
         else:
-            end_week = self.week_started_timestamp + 7 * 24 * 3600 - 1
+            end_week = round(self.week_started_timestamp + 7 * 24 * 3600 - 1)
             emb = Embed(color=0xfaf6e8,
                         description=f"Vous pouvez actuellement __**vendre**__ des navets et ce jusqu'au <t:{end_week}>\n"
                                     f"Prochain changement: <t:{self.time_end_hd}:R>\n\n"
