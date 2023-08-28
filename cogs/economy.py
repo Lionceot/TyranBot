@@ -1159,7 +1159,7 @@ class Turnip(commands.Cog):
         self.half_day = data["half-day"]
         self.time_end_hd = self.week_started_timestamp + (self.half_day+1) * 3600 * 12
 
-        self.can_buy = self.half_day < 3
+        self.can_buy = self.half_day < 2
         self.buy_price = data['base-price']
 
         self.can_sell = not self.can_buy
@@ -1206,6 +1206,9 @@ class Turnip(commands.Cog):
                 self.sell_price = data['prices'][self.half_day]
                 with open("json/turnip.json", 'w', encoding='utf-8') as turnip_file:
                     json.dump(data, turnip_file, indent=2)
+
+            self.can_buy = self.half_day < 2
+            self.can_sell = not self.can_buy
 
     @turnip_loop.before_loop
     async def before_turnip_loop(self):
