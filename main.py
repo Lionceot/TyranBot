@@ -34,7 +34,7 @@ curD = db.cursor(buffered=True)
 
 
 def in_database(user):
-    curA.execute(f"SELECT discordID FROM Users WHERE discordID = {user.id}")
+    curA.execute(f"SELECT discordID FROM users WHERE discordID = {user.id}")
     for x in curA:
         id_found = x[0]
         if id_found == user.id:

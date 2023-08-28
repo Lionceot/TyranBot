@@ -199,7 +199,7 @@ class Economy(commands.Cog):
         await new_player(user)
 
         curA.execute(
-            f"SELECT d.streak, d.ready, d.nbDaily, d.bestStreak, u.language FROM dailyRecord AS d, users AS u WHERE d.discordID = {user.id} AND u.discordID = {user.id}")
+            f"SELECT d.streak, d.ready, d.nbDaily, d.bestStreak, u.language FROM dailyrecord AS d, users AS u WHERE d.discordID = {user.id} AND u.discordID = {user.id}")
         row = curA.fetchone()
         streak = row[0] + 1
         ready = row[1]
